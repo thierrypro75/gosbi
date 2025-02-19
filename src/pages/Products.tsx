@@ -6,6 +6,8 @@ import { Product, Presentation } from '../lib/schemas/product';
 import Offcanvas from '../components/common/Offcanvas';
 import ProductForm from '../components/products/ProductForm';
 import { toast } from 'react-hot-toast';
+import StockAlerts from '../components/stock/StockAlerts';
+import ImportExport from '../components/products/ImportExport';
 
 export default function Products() {
   const [isOffcanvasOpen, setIsOffcanvasOpen] = useState(false);
@@ -88,16 +90,19 @@ export default function Products() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">Produits</h1>
-        <button
-          onClick={() => {
-            setSelectedProduct(null);
-            setIsOffcanvasOpen(true);
-          }}
-          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          Nouveau Produit
-        </button>
+        <div className="flex items-center space-x-4">
+          <ImportExport />
+          <button
+            onClick={() => {
+              setSelectedProduct(null);
+              setIsOffcanvasOpen(true);
+            }}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            Nouveau Produit
+          </button>
+        </div>
       </div>
 
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
@@ -304,6 +309,8 @@ export default function Products() {
           }}
         />
       </Offcanvas>
+
+      <StockAlerts />
     </div>
   );
 }
