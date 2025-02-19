@@ -1,75 +1,241 @@
 import { supabase } from '../supabaseClient';
-import { Product, ProductUpdate } from '../schemas/product';
+import { Product, ProductUpdate, Presentation } from '../schemas/product';
 import toast from 'react-hot-toast';
 
-const TABLE_NAME = 'products';
+const PRODUCTS_TABLE = 'products';
+const PRESENTATIONS_TABLE = 'presentations';
+
+function generateSKU(productName: string, unit: string, index: number): string {
+  // Prend les 3 premières lettres du nom du produit en majuscules
+  const prefix = productName.slice(0, 3).toUpperCase();
+  // Prend la première lettre de l'unité en majuscules
+  const unitPrefix = unit.slice(0, 1).toUpperCase();
+  // Ajoute un numéro séquentiel sur 3 chiffres
+  const sequence = String(index + 1).padStart(3, '0');
+  
+  return `${prefix}-${unitPrefix}${sequence}`;
+}
 
 export const productService = {
   async getAll() {
-    const { data, error } = await supabase
-      .from(TABLE_NAME)
+    const { data: products, error: productsError } = await supabase
+      .from(PRODUCTS_TABLE)
       .select('*')
       .order('name');
 
-    if (error) {
+    if (productsError) {
       toast.error('Erreur lors du chargement des produits');
-      throw error;
+      throw productsError;
     }
 
-    return data;
+    // Récupérer les présentations pour chaque produit
+    const productsWithPresentations = await Promise.all(
+      products.map(async (product) => {
+        const { data: presentations, error: presentationsError } = await supabase
+          .from(PRESENTATIONS_TABLE)
+          .select('*')
+          .eq('product_id', product.id)
+          .order('created_at');
+
+        if (presentationsError) {
+          toast.error('Erreur lors du chargement des présentations');
+          throw presentationsError;
+        }
+
+        // Convertir les présentations en format camelCase
+        const formattedPresentations = (presentations || []).map(p => ({
+          id: p.id,
+          unit: p.unit,
+          purchasePrice: p.purchase_price,
+          sellingPrice: p.selling_price,
+          stock: p.stock,
+          lowStockThreshold: p.low_stock_threshold,
+          sku: p.sku
+        }));
+
+        return {
+          ...product,
+          presentations: formattedPresentations
+        };
+      })
+    );
+
+    return productsWithPresentations;
   },
 
   async getById(id: string) {
-    const { data, error } = await supabase
-      .from(TABLE_NAME)
+    const { data: product, error: productError } = await supabase
+      .from(PRODUCTS_TABLE)
       .select('*')
       .eq('id', id)
       .single();
 
-    if (error) {
+    if (productError) {
       toast.error('Erreur lors du chargement du produit');
-      throw error;
+      throw productError;
     }
 
-    return data;
+    const { data: presentations, error: presentationsError } = await supabase
+      .from(PRESENTATIONS_TABLE)
+      .select('*')
+      .eq('product_id', id)
+      .order('created_at');
+
+    if (presentationsError) {
+      toast.error('Erreur lors du chargement des présentations');
+      throw presentationsError;
+    }
+
+    // Convertir les présentations en format camelCase
+    const formattedPresentations = (presentations || []).map(p => ({
+      id: p.id,
+      unit: p.unit,
+      purchasePrice: p.purchase_price,
+      sellingPrice: p.selling_price,
+      stock: p.stock,
+      lowStockThreshold: p.low_stock_threshold,
+      sku: p.sku
+    }));
+
+    return {
+      ...product,
+      presentations: formattedPresentations
+    };
   },
 
   async create(product: Omit<Product, 'id'>) {
-    const { data, error } = await supabase
-      .from(TABLE_NAME)
-      .insert([{ ...product, createdAt: new Date(), updatedAt: new Date() }])
+    console.log('Creating product in service:', product);
+    // 1. Créer d'abord le produit
+    const { data: newProduct, error: productError } = await supabase
+      .from(PRODUCTS_TABLE)
+      .insert([{
+        name: product.name,
+        description: product.description,
+        category: product.category,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }])
       .select()
       .single();
 
-    if (error) {
+    if (productError) {
+      console.error('Error creating product:', productError);
       toast.error('Erreur lors de la création du produit');
-      throw error;
+      throw productError;
     }
 
+    console.log('Product created:', newProduct);
+
+    // 2. Créer les présentations avec les SKUs générés
+    const presentationsToCreate = product.presentations.map((presentation, index) => ({
+      product_id: newProduct.id,
+      unit: presentation.unit,
+      purchase_price: presentation.purchasePrice,
+      selling_price: presentation.sellingPrice,
+      stock: presentation.stock,
+      low_stock_threshold: presentation.lowStockThreshold,
+      sku: generateSKU(product.name, presentation.unit, index),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }));
+
+    console.log('Creating presentations:', presentationsToCreate);
+
+    const { data: presentations, error: presentationsError } = await supabase
+      .from(PRESENTATIONS_TABLE)
+      .insert(presentationsToCreate)
+      .select();
+
+    if (presentationsError) {
+      console.error('Error creating presentations:', presentationsError);
+      // Si erreur, supprimer le produit créé
+      await supabase.from(PRODUCTS_TABLE).delete().eq('id', newProduct.id);
+      toast.error('Erreur lors de la création des présentations');
+      throw presentationsError;
+    }
+
+    // Convertir les présentations en format camelCase pour le frontend
+    const formattedPresentations = presentations.map(p => ({
+      id: p.id,
+      unit: p.unit,
+      purchasePrice: p.purchase_price,
+      sellingPrice: p.selling_price,
+      stock: p.stock,
+      lowStockThreshold: p.low_stock_threshold,
+      sku: p.sku
+    }));
+
+    console.log('Presentations created:', formattedPresentations);
     toast.success('Produit créé avec succès');
-    return data;
+    return {
+      ...newProduct,
+      presentations: formattedPresentations
+    };
   },
 
   async update(id: string, product: ProductUpdate) {
-    const { data, error } = await supabase
-      .from(TABLE_NAME)
-      .update({ ...product, updatedAt: new Date() })
-      .eq('id', id)
-      .select()
-      .single();
+    // 1. Mettre à jour le produit
+    const { error: productError } = await supabase
+      .from(PRODUCTS_TABLE)
+      .update({
+        name: product.name,
+        description: product.description,
+        category: product.category,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id);
 
-    if (error) {
+    if (productError) {
       toast.error('Erreur lors de la mise à jour du produit');
-      throw error;
+      throw productError;
+    }
+
+    // 2. Mettre à jour ou créer les présentations
+    if (product.presentations) {
+      // Supprimer les anciennes présentations
+      await supabase
+        .from(PRESENTATIONS_TABLE)
+        .delete()
+        .eq('product_id', id);
+
+      // Créer les nouvelles présentations
+      const presentationsToCreate = product.presentations.map((presentation, index) => ({
+        product_id: id,
+        unit: presentation.unit,
+        purchase_price: presentation.purchasePrice,
+        selling_price: presentation.sellingPrice,
+        stock: presentation.stock,
+        low_stock_threshold: presentation.lowStockThreshold,
+        sku: generateSKU(product.name!, presentation.unit, index),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }));
+
+      const { error: presentationsError } = await supabase
+        .from(PRESENTATIONS_TABLE)
+        .insert(presentationsToCreate)
+        .select();
+
+      if (presentationsError) {
+        toast.error('Erreur lors de la mise à jour des présentations');
+        throw presentationsError;
+      }
     }
 
     toast.success('Produit mis à jour avec succès');
-    return data;
+    return this.getById(id);
   },
 
   async delete(id: string) {
+    // Supprimer d'abord les présentations
+    await supabase
+      .from(PRESENTATIONS_TABLE)
+      .delete()
+      .eq('product_id', id);
+
+    // Puis supprimer le produit
     const { error } = await supabase
-      .from(TABLE_NAME)
+      .from(PRODUCTS_TABLE)
       .delete()
       .eq('id', id);
 
@@ -81,42 +247,50 @@ export const productService = {
     toast.success('Produit supprimé avec succès');
   },
 
-  async updateStock(id: string, quantity: number) {
-    const { data: product } = await this.getById(id);
-    const newStock = product.stock + quantity;
+  async updateStock(presentationId: string, quantity: number) {
+    // 1. Récupérer la présentation actuelle
+    const { data: presentation, error: getError } = await supabase
+      .from(PRESENTATIONS_TABLE)
+      .select('*')
+      .eq('id', presentationId)
+      .single();
 
+    if (getError) {
+      toast.error('Erreur lors de la récupération de la présentation');
+      throw getError;
+    }
+
+    const newStock = presentation.stock + quantity;
     if (newStock < 0) {
       toast.error('Stock insuffisant');
       throw new Error('Stock insuffisant');
     }
 
-    const { data, error } = await supabase
-      .from(TABLE_NAME)
+    // 2. Mettre à jour le stock
+    const { error: updateError } = await supabase
+      .from(PRESENTATIONS_TABLE)
       .update({ 
         stock: newStock,
-        updatedAt: new Date()
+        updated_at: new Date()
       })
-      .eq('id', id)
-      .select()
-      .single();
+      .eq('id', presentationId);
 
-    if (error) {
+    if (updateError) {
       toast.error('Erreur lors de la mise à jour du stock');
-      throw error;
+      throw updateError;
     }
 
-    // Vérifier le seuil de stock bas
-    if (newStock <= product.lowStockThreshold) {
-      toast.error(`Stock bas pour ${product.name} (${newStock} unités restantes)`);
-      // Ici, on pourrait ajouter une notification dans une table dédiée
+    // 3. Vérifier le seuil de stock bas
+    if (newStock <= presentation.low_stock_threshold) {
+      toast.error(`Stock bas pour la présentation (${newStock} unités restantes)`);
     }
 
-    return data;
+    return this.getById(presentation.product_id);
   },
 
   async importProducts(products: Omit<Product, 'id'>[]) {
     const { data, error } = await supabase
-      .from(TABLE_NAME)
+      .from(PRODUCTS_TABLE)
       .insert(products.map(product => ({
         ...product,
         createdAt: new Date(),

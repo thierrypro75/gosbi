@@ -20,17 +20,39 @@ export default function ProductForm({ initialData, onSubmit, onCancel }: Product
     resolver: zodResolver(productSchema),
     defaultValues: {
       ...initialData,
-      presentations: initialData?.presentations || [{ size: '', unit: '', purchasePrice: 0, sellingPrice: 0, stock: 0, lowStockThreshold: 5, sku: '' }],
+      presentations: initialData?.presentations || [{
+        unit: '',
+        purchasePrice: 0,
+        sellingPrice: 0,
+        stock: 0,
+        lowStockThreshold: 5
+      }],
     },
   });
+
+  console.log('Form errors:', errors);
 
   const { fields, append, remove } = useFieldArray({
     control,
     name: 'presentations',
   });
 
+  const onSubmitForm = async (data: Product) => {
+    console.log('Form submitted with data:', data);
+    console.log('Form validation errors:', errors);
+    try {
+      await onSubmit(data);
+    } catch (error) {
+      console.error('Error submitting form:', error);
+    }
+  };
+
+  const onError = (errors: any) => {
+    console.error('Form validation failed:', errors);
+  };
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmitForm, onError)} className="space-y-6">
       <div>
         <label htmlFor="name" className="block text-sm font-medium text-gray-700">
           Nom du produit
@@ -81,7 +103,13 @@ export default function ProductForm({ initialData, onSubmit, onCancel }: Product
           <h3 className="text-lg font-medium text-gray-900">Présentations</h3>
           <button
             type="button"
-            onClick={() => append({ size: '', unit: '', purchasePrice: 0, sellingPrice: 0, stock: 0, lowStockThreshold: 5, sku: '' })}
+            onClick={() => append({
+              unit: '',
+              purchasePrice: 0,
+              sellingPrice: 0,
+              stock: 0,
+              lowStockThreshold: 5
+            })}
             className="flex items-center text-sm text-blue-600 hover:text-blue-700"
           >
             <Plus className="h-4 w-4 mr-1" />
@@ -104,30 +132,16 @@ export default function ProductForm({ initialData, onSubmit, onCancel }: Product
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Taille</label>
-                <input
-                  type="text"
-                  {...register(`presentations.${index}.size`)}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                />
-                {errors.presentations?.[index]?.size && (
-                  <p className="mt-1 text-sm text-red-600">{errors.presentations[index].size.message}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Unité</label>
-                <input
-                  type="text"
-                  {...register(`presentations.${index}.unit`)}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                />
-                {errors.presentations?.[index]?.unit && (
-                  <p className="mt-1 text-sm text-red-600">{errors.presentations[index].unit.message}</p>
-                )}
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Unité</label>
+              <input
+                type="text"
+                {...register(`presentations.${index}.unit`)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+              {errors.presentations?.[index]?.unit && (
+                <p className="mt-1 text-sm text-red-600">{errors.presentations[index].unit.message}</p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -182,18 +196,6 @@ export default function ProductForm({ initialData, onSubmit, onCancel }: Product
                   <p className="mt-1 text-sm text-red-600">{errors.presentations[index].lowStockThreshold.message}</p>
                 )}
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">SKU</label>
-              <input
-                type="text"
-                {...register(`presentations.${index}.sku`)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
-              {errors.presentations?.[index]?.sku && (
-                <p className="mt-1 text-sm text-red-600">{errors.presentations[index].sku.message}</p>
-              )}
             </div>
           </div>
         ))}

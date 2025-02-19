@@ -5,6 +5,7 @@ import { productService } from '../lib/services/productService';
 import { Product, Presentation } from '../lib/schemas/product';
 import Offcanvas from '../components/common/Offcanvas';
 import ProductForm from '../components/products/ProductForm';
+import { toast } from 'react-hot-toast';
 
 export default function Products() {
   const [isOffcanvasOpen, setIsOffcanvasOpen] = useState(false);
@@ -19,17 +20,31 @@ export default function Products() {
 
   // Mutation pour créer/modifier un produit
   const { mutate: saveProduct } = useMutation({
-    mutationFn: (data: Partial<Product>) => {
-      if (selectedProduct?.id) {
-        return productService.update(selectedProduct.id, data);
+    mutationFn: async (data: Partial<Product>) => {
+      console.log('Mutation started with data:', data);
+      try {
+        if (selectedProduct?.id) {
+          console.log('Updating product:', selectedProduct.id);
+          return await productService.update(selectedProduct.id, data);
+        }
+        console.log('Creating new product');
+        return await productService.create(data as Omit<Product, 'id'>);
+      } catch (error) {
+        console.error('Error in mutation:', error);
+        throw error;
       }
-      return productService.create(data as Omit<Product, 'id'>);
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Mutation successful:', data);
       queryClient.invalidateQueries({ queryKey: ['products'] });
       setIsOffcanvasOpen(false);
       setSelectedProduct(null);
+      toast.success('Produit enregistré avec succès');
     },
+    onError: (error) => {
+      console.error('Mutation error:', error);
+      toast.error('Erreur lors de l\'enregistrement du produit');
+    }
   });
 
   // Mutation pour supprimer un produit
@@ -60,7 +75,8 @@ export default function Products() {
     }
   };
 
-  const handleStockAdjustment = (presentationId: string, adjustment: number) => {
+  const handleStockAdjustment = (presentationId: string | undefined, adjustment: number) => {
+    if (!presentationId) return;
     updateStock({ presentationId, quantity: adjustment });
   };
 
@@ -128,9 +144,9 @@ export default function Products() {
                     )}
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div>
-                        <span className="font-medium">{presentation.size} {presentation.unit}</span>
+                        <span className="font-medium">{presentation.unit}</span>
                         <br />
-                        <span className="text-xs">SKU: {presentation.sku}</span>
+                        <span className="text-xs text-gray-400">SKU: {presentation.sku}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -154,18 +170,6 @@ export default function Products() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleStockAdjustment(presentation.id, 1)}
-                          className="text-green-600 hover:text-green-900"
-                        >
-                          +1
-                        </button>
-                        <button
-                          onClick={() => handleStockAdjustment(presentation.id, -1)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          -1
-                        </button>
                         {index === 0 && (
                           <>
                             <button
@@ -227,9 +231,9 @@ export default function Products() {
                     <div key={presentation.id} className="border rounded-lg p-3 space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="font-medium">
-                          {presentation.size} {presentation.unit}
+                          {presentation.unit}
                         </span>
-                        <span className="text-sm text-gray-500">
+                        <span className="text-sm text-gray-400">
                           SKU: {presentation.sku}
                         </span>
                       </div>
