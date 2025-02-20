@@ -9,6 +9,8 @@
       - Sales transaction records
     - stock_alerts
       - Automated low stock notifications
+    - stock_movements
+      - Stock movement records
 
   2. Security
     - RLS policies for all tables
@@ -20,10 +22,21 @@ CREATE TABLE IF NOT EXISTS products (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL,
   description text,
-  sku text UNIQUE NOT NULL,
-  price decimal(10,2) NOT NULL,
-  current_stock integer NOT NULL DEFAULT 0,
-  minimum_stock integer NOT NULL DEFAULT 10,
+  category text NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Presentations Table
+CREATE TABLE IF NOT EXISTS presentations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id uuid REFERENCES products(id) ON DELETE CASCADE,
+  unit text NOT NULL,
+  purchase_price decimal(10,2) NOT NULL,
+  selling_price decimal(10,2) NOT NULL,
+  stock integer NOT NULL DEFAULT 0,
+  low_stock_threshold integer NOT NULL DEFAULT 5,
+  sku text,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
@@ -42,17 +55,34 @@ CREATE TABLE IF NOT EXISTS sales (
 -- Stock Alerts Table
 CREATE TABLE IF NOT EXISTS stock_alerts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  product_id uuid REFERENCES products(id),
-  alert_type text NOT NULL,
+  product_id uuid REFERENCES products(id) ON DELETE CASCADE,
+  presentation_id uuid REFERENCES presentations(id) ON DELETE CASCADE,
+  type text NOT NULL,
   message text NOT NULL,
-  is_resolved boolean DEFAULT false,
+  is_read boolean DEFAULT false,
   created_at timestamptz DEFAULT now()
+);
+
+-- Stock Movements Table
+CREATE TABLE IF NOT EXISTS stock_movements (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id uuid REFERENCES products(id) ON DELETE CASCADE,
+  presentation_id uuid REFERENCES presentations(id) ON DELETE CASCADE,
+  quantity_in integer,
+  quantity_out integer,
+  stock_before integer NOT NULL,
+  stock_after integer NOT NULL,
+  reason text NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
 );
 
 -- Enable RLS
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE presentations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sales ENABLE ROW LEVEL SECURITY;
 ALTER TABLE stock_alerts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE stock_movements ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
 CREATE POLICY "Allow authenticated users to read products"
@@ -67,6 +97,31 @@ CREATE POLICY "Allow authenticated users to insert products"
 
 CREATE POLICY "Allow authenticated users to update products"
   ON products FOR UPDATE
+  TO authenticated
+  USING (true);
+
+CREATE POLICY "Allow authenticated users to delete products"
+  ON products FOR DELETE
+  TO authenticated
+  USING (true);
+
+CREATE POLICY "Allow authenticated users to read presentations"
+  ON presentations FOR SELECT
+  TO authenticated
+  USING (true);
+
+CREATE POLICY "Allow authenticated users to insert presentations"
+  ON presentations FOR INSERT
+  TO authenticated
+  WITH CHECK (true);
+
+CREATE POLICY "Allow authenticated users to update presentations"
+  ON presentations FOR UPDATE
+  TO authenticated
+  USING (true);
+
+CREATE POLICY "Allow authenticated users to delete presentations"
+  ON presentations FOR DELETE
   TO authenticated
   USING (true);
 
@@ -85,6 +140,22 @@ CREATE POLICY "Allow authenticated users to read alerts"
   TO authenticated
   USING (true);
 
+CREATE POLICY "Allow authenticated users to update alerts"
+  ON stock_alerts FOR UPDATE
+  TO authenticated
+  USING (true);
+
+-- Stock Movements Policies
+CREATE POLICY "Allow authenticated users to read stock movements"
+  ON stock_movements FOR SELECT
+  TO authenticated
+  USING (true);
+
+CREATE POLICY "Allow authenticated users to insert stock movements"
+  ON stock_movements FOR INSERT
+  TO authenticated
+  WITH CHECK (true);
+
 -- Functions
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
@@ -97,6 +168,11 @@ $$ LANGUAGE plpgsql;
 -- Triggers
 CREATE TRIGGER update_products_updated_at
   BEFORE UPDATE ON products
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER update_presentations_updated_at
+  BEFORE UPDATE ON presentations
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at();
 

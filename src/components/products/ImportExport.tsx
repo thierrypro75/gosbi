@@ -1,9 +1,13 @@
 import { useState } from 'react';
-import { Download, Upload, FileDown } from 'lucide-react';
+import { Upload, Download, FileDown } from 'lucide-react';
 import { importExportService } from '../../lib/services/importExportService';
 import { toast } from 'react-hot-toast';
 
-export default function ImportExport() {
+interface ImportExportProps {
+  buttonClassName?: string;
+}
+
+export default function ImportExport({ buttonClassName = "p-1 sm:p-1.5" }: ImportExportProps) {
   const [isImporting, setIsImporting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -52,7 +56,7 @@ export default function ImportExport() {
   };
 
   return (
-    <div className="flex space-x-4">
+    <div className="flex space-x-1">
       <label className="relative">
         <input
           type="file"
@@ -61,27 +65,26 @@ export default function ImportExport() {
           className="sr-only"
           disabled={isImporting}
         />
-        <span className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 cursor-pointer disabled:opacity-50">
-          <Upload className="h-5 w-5 mr-2" />
-          {isImporting ? 'Importation...' : 'Importer'}
+        <span className={`${buttonClassName} bg-blue-600 text-white rounded hover:bg-blue-700 cursor-pointer disabled:opacity-50`} title="Importer">
+          <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         </span>
       </label>
 
       <button
         onClick={handleExport}
         disabled={isExporting}
-        className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+        className={`${buttonClassName} bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50`}
+        title="Exporter"
       >
-        <Download className="h-5 w-5 mr-2" />
-        {isExporting ? 'Exportation...' : 'Exporter'}
+        <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
       </button>
 
       <button
         onClick={handleDownloadTemplate}
-        className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+        className={`${buttonClassName} bg-gray-600 text-white rounded hover:bg-gray-700`}
+        title="Télécharger le modèle CSV"
       >
-        <FileDown className="h-5 w-5 mr-2" />
-        Modèle CSV
+        <FileDown className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
       </button>
     </div>
   );

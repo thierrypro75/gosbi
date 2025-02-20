@@ -6,9 +6,10 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  className?: string;
 }
 
-export default function Modal({ isOpen, onClose, title, children }: ModalProps) {
+export default function Modal({ isOpen, onClose, title, children, className = 'sm:max-w-lg' }: ModalProps) {
   if (!isOpen) return null;
 
   return (
@@ -21,7 +22,7 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
         />
 
         {/* Modal */}
-        <div className="inline-block transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6 sm:align-middle">
+        <div className={`inline-block transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full ${className} sm:p-6 sm:align-middle`}>
           <div className="absolute right-0 top-0 pr-4 pt-4">
             <button
               type="button"

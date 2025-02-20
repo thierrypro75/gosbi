@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient';
 import { Product, ProductUpdate, Presentation } from '../schemas/product';
+import { stockMovementService } from './stockMovementService';
 import toast from 'react-hot-toast';
 
 const PRODUCTS_TABLE = 'products';
@@ -154,6 +155,27 @@ export const productService = {
       throw presentationsError;
     }
 
+    // 3. Créer les mouvements de stock initiaux
+    try {
+      await Promise.all(presentations.map(async (presentation) => {
+        if (presentation.stock > 0) {
+          await stockMovementService.create({
+            productId: newProduct.id,
+            presentationId: presentation.id,
+            quantityIn: presentation.stock,
+            quantityOut: null,
+            stockBefore: 0,
+            stockAfter: presentation.stock,
+            reason: 'INITIAL'
+          });
+        }
+      }));
+    } catch (error) {
+      console.error('Error creating stock movements:', error);
+      // On continue malgré l'erreur car le produit et les présentations sont déjà créés
+      toast.error('Erreur lors de la création des mouvements de stock');
+    }
+
     // Convertir les présentations en format camelCase pour le frontend
     const formattedPresentations = presentations.map(p => ({
       id: p.id,
@@ -251,7 +273,7 @@ export const productService = {
     // 1. Récupérer la présentation actuelle
     const { data: presentation, error: getError } = await supabase
       .from(PRESENTATIONS_TABLE)
-      .select('*')
+      .select('*, products!inner(*)')
       .eq('id', presentationId)
       .single();
 
@@ -283,6 +305,101 @@ export const productService = {
     // 3. Vérifier le seuil de stock bas
     if (newStock <= presentation.low_stock_threshold) {
       toast.error(`Stock bas pour la présentation (${newStock} unités restantes)`);
+    }
+
+    return this.getById(presentation.product_id);
+  },
+
+  async processSale(presentationId: string, quantity: number) {
+    // 1. Récupérer la présentation actuelle
+    const { data: presentation, error: getError } = await supabase
+      .from(PRESENTATIONS_TABLE)
+      .select('*, products!inner(*)')
+      .eq('id', presentationId)
+      .single();
+
+    if (getError) {
+      toast.error('Erreur lors de la récupération de la présentation');
+      throw getError;
+    }
+
+    const newStock = presentation.stock - quantity;
+    if (newStock < 0) {
+      toast.error('Stock insuffisant');
+      throw new Error('Stock insuffisant');
+    }
+
+    // 2. Créer le mouvement de stock pour la vente
+    await stockMovementService.create({
+      productId: presentation.product_id,
+      presentationId: presentationId,
+      quantityIn: null,
+      quantityOut: quantity,
+      stockBefore: presentation.stock,
+      stockAfter: newStock,
+      reason: 'SALE'
+    });
+
+    // 3. Mettre à jour le stock
+    const { error: updateError } = await supabase
+      .from(PRESENTATIONS_TABLE)
+      .update({ 
+        stock: newStock,
+        updated_at: new Date()
+      })
+      .eq('id', presentationId);
+
+    if (updateError) {
+      toast.error('Erreur lors de la mise à jour du stock');
+      throw updateError;
+    }
+
+    // 4. Vérifier le seuil de stock bas
+    if (newStock <= presentation.low_stock_threshold) {
+      toast.error(`Stock bas pour la présentation (${newStock} unités restantes)`);
+    }
+
+    return this.getById(presentation.product_id);
+  },
+
+  async processReturn(presentationId: string, quantity: number) {
+    // 1. Récupérer la présentation actuelle
+    const { data: presentation, error: getError } = await supabase
+      .from(PRESENTATIONS_TABLE)
+      .select('*, products!inner(*)')
+      .eq('id', presentationId)
+      .single();
+
+    if (getError) {
+      toast.error('Erreur lors de la récupération de la présentation');
+      throw getError;
+    }
+
+    const newStock = presentation.stock + quantity;
+
+    // 2. Créer le mouvement de stock pour le retour
+    await stockMovementService.create({
+      productId: presentation.product_id,
+      presentationId: presentationId,
+      quantityIn: quantity,
+      quantityOut: null,
+      stockBefore: presentation.stock,
+      stockAfter: newStock,
+      reason: 'RETURN'
+    });
+
+    // 3. Mettre à jour le stock
+    const { error: updateError } = await supabase
+      .from(PRESENTATIONS_TABLE)
+      .update({ 
+        stock: newStock,
+        updated_at: new Date()
+      })
+      .eq('id', presentationId);
+
+    if (updateError) {
+      toast.error('Erreur lors de la mise à jour du stock');
+      throw updateError;
     }
 
     return this.getById(presentation.product_id);
