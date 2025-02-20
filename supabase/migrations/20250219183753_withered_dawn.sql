@@ -49,7 +49,10 @@ CREATE TABLE IF NOT EXISTS sales (
   unit_price decimal(10,2) NOT NULL,
   total_amount decimal(10,2) NOT NULL,
   transaction_date timestamptz DEFAULT now(),
-  created_by uuid REFERENCES auth.users(id)
+  created_by uuid REFERENCES auth.users(id),
+  client_name text NOT NULL,
+  description text,
+  created_at timestamptz DEFAULT now()
 );
 
 -- Stock Alerts Table
@@ -130,10 +133,10 @@ CREATE POLICY "Allow authenticated users to read sales"
   TO authenticated
   USING (true);
 
-CREATE POLICY "Allow users to insert their own sales"
+CREATE POLICY "Allow users to insert sales"
   ON sales FOR INSERT
   TO authenticated
-  WITH CHECK (auth.uid() = created_by);
+  WITH CHECK (true);
 
 CREATE POLICY "Allow authenticated users to read alerts"
   ON stock_alerts FOR SELECT
@@ -151,7 +154,7 @@ CREATE POLICY "Allow authenticated users to read stock movements"
   TO authenticated
   USING (true);
 
-CREATE POLICY "Allow authenticated users to insert stock movements"
+CREATE POLICY "Allow users to insert stock movements"
   ON stock_movements FOR INSERT
   TO authenticated
   WITH CHECK (true);
