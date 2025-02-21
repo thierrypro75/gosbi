@@ -11,7 +11,12 @@ export const stockMovementService = {
       .select(`
         *,
         product:products!stock_movements_product_id_fkey(name),
-        presentation:presentations!stock_movements_presentation_id_fkey(unit)
+        presentation:presentations!stock_movements_presentation_id_fkey(unit),
+        sale:sales!stock_movements_sale_id_fkey(
+          client_name,
+          sale_date,
+          status
+        )
       `)
       .order('created_at', { ascending: false });
 
@@ -30,7 +35,12 @@ export const stockMovementService = {
       .select(`
         *,
         product:products!stock_movements_product_id_fkey(name),
-        presentation:presentations!stock_movements_presentation_id_fkey(unit)
+        presentation:presentations!stock_movements_presentation_id_fkey(unit),
+        sale:sales!stock_movements_sale_id_fkey(
+          client_name,
+          sale_date,
+          status
+        )
       `)
       .eq('presentation_id', presentationId)
       .order('created_at', { ascending: false });
@@ -55,6 +65,8 @@ export const stockMovementService = {
         stock_before: movement.stockBefore,
         stock_after: movement.stockAfter,
         reason: movement.reason,
+        sale_id: movement.saleId,
+        status: movement.status || 'ACTIVE',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }])

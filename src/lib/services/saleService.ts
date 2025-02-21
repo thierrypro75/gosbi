@@ -4,6 +4,7 @@ import { stockMovementService } from './stockMovementService';
 export interface Sale {
   id: string;
   product_id: string;
+  presentation_id: string;
   quantity: number;
   unit_price: number;
   total_amount: number;
@@ -11,11 +12,12 @@ export interface Sale {
   created_by: string;
   client_name: string;
   description: string;
+  status: 'ACTIVE' | 'CANCELLED';
   product?: {
     name: string;
-    presentations?: {
-      unit: string;
-    }[];
+  };
+  presentation?: {
+    unit: string;
   };
 }
 
@@ -54,6 +56,7 @@ export const saleService = {
         .from('sales')
         .insert({
           product_id: productId,
+          presentation_id: presentationId,
           quantity,
           unit_price: unitPrice,
           total_amount: totalAmount,
@@ -61,6 +64,7 @@ export const saleService = {
           client_name: clientName,
           description,
           created_by: (await supabase.auth.getUser()).data.user?.id,
+          status: 'ACTIVE'
         })
         .select()
         .single();
@@ -84,7 +88,9 @@ export const saleService = {
         quantityOut: quantity,
         stockBefore: currentStock,
         stockAfter: newStock,
-        reason: 'SALE'
+        reason: 'SALE',
+        saleId: saleData.id,
+        status: 'ACTIVE'
       });
 
       return { data: saleData, error: null };
@@ -98,35 +104,107 @@ export const saleService = {
     startDate?: string,
     endDate?: string,
   ): Promise<{ data: Sale[] | null; error: Error | null }> {
+    let query = supabase
+      .from('sales')
+      .select(`
+        *,
+        product:products!product_id(name),
+        presentation:presentations!presentation_id(unit)
+      `)
+      .eq('status', 'ACTIVE')
+      .order('sale_date', { ascending: false });
+
+    if (startDate) {
+      query = query.gte('sale_date', startDate);
+    }
+    if (endDate) {
+      query = query.lte('sale_date', endDate);
+    }
+
+    const { data, error } = await query;
+    return { data, error };
+  },
+
+  async deleteSale(saleId: string): Promise<{ error: Error | null }> {
     try {
-      let query = supabase
+      console.log('Début de la suppression de la vente:', saleId);
+      
+      // 1. Récupérer les informations de la vente
+      const { data: sale, error: saleError } = await supabase
         .from('sales')
         .select(`
           *,
-          product:products (
-            name,
-            presentations (
-              unit
-            )
-          )
+          presentation:presentations!presentation_id(stock)
         `)
-        .order('sale_date', { ascending: false });
+        .eq('id', saleId)
+        .single();
 
-      if (startDate) {
-        query = query.gte('sale_date', new Date(startDate).toISOString());
+      if (saleError) {
+        console.error('Erreur lors de la récupération de la vente:', saleError);
+        throw saleError;
       }
-      if (endDate) {
-        query = query.lte('sale_date', new Date(endDate).toISOString());
+      if (!sale) throw new Error('Vente non trouvée');
+      
+      console.log('Vente trouvée:', sale);
+
+      // 2. Marquer la vente comme annulée
+      const updateResult = await supabase
+        .from('sales')
+        .update({ status: 'CANCELLED' })
+        .eq('id', saleId)
+        .select()
+        .single();
+
+      console.log('Résultat de la mise à jour:', updateResult);
+
+      if (updateResult.error) {
+        console.error('Erreur lors de la mise à jour du statut:', updateResult.error);
+        throw updateResult.error;
       }
 
-      const { data, error } = await query;
+      if (!updateResult.data || updateResult.data.status !== 'CANCELLED') {
+        throw new Error('La mise à jour du statut a échoué');
+      }
+      
+      console.log('Vente marquée comme annulée:', updateResult.data);
 
-      if (error) throw error;
+      // 3. Restaurer le stock
+      const newStock = sale.presentation.stock + sale.quantity;
+      const { error: stockError } = await supabase
+        .from('presentations')
+        .update({ stock: newStock })
+        .eq('id', sale.presentation_id);
 
-      return { data, error: null };
+      if (stockError) {
+        console.error('Erreur lors de la mise à jour du stock:', stockError);
+        throw stockError;
+      }
+      
+      console.log('Stock restauré:', newStock);
+
+      // 4. Créer un mouvement de stock inverse
+      try {
+        await stockMovementService.create({
+          productId: sale.product_id,
+          presentationId: sale.presentation_id,
+          quantityIn: sale.quantity,
+          quantityOut: null,
+          stockBefore: sale.presentation.stock,
+          stockAfter: newStock,
+          reason: 'CORRECTION',
+          saleId: saleId,
+          status: 'ACTIVE'
+        });
+        console.log('Mouvement de stock inverse créé');
+      } catch (moveError) {
+        console.error('Erreur lors de la création du mouvement inverse:', moveError);
+        throw moveError;
+      }
+
+      return { error: null };
     } catch (error) {
-      console.error('Error fetching sales:', error);
-      return { data: null, error: error as Error };
+      console.error('Error cancelling sale:', error);
+      return { error: error as Error };
     }
   },
 }; 

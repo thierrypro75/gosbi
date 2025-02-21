@@ -9,6 +9,8 @@ export const stockMovementSchema = z.object({
   stockBefore: z.number().int(),
   stockAfter: z.number().int(),
   reason: z.enum(['INITIAL', 'ADJUSTMENT', 'SALE', 'RETURN', 'CORRECTION']),
+  saleId: z.string().nullable().optional(),
+  status: z.enum(['ACTIVE', 'CANCELLED']).default('ACTIVE'),
   createdAt: z.date().optional(),
   updatedAt: z.date().optional(),
 });

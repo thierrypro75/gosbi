@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Download, Plus } from 'lucide-react';
+import { ShoppingCart, Download, Plus, Trash2 } from 'lucide-react';
 import { formatPrice } from '../lib/utils';
 import { saleService, Sale } from '../lib/services/saleService';
 import { productService } from '../lib/services/productService';
+import { toast } from 'react-hot-toast';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 
 interface Product {
   id: string;
@@ -15,9 +17,15 @@ interface Product {
   }[];
 }
 
+interface Presentation {
+  id: string;
+  unit: string;
+  sellingPrice: number;
+  stock: number;
+}
+
 export default function Sales() {
   const [sales, setSales] = useState<Sale[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [selectedPresentation, setSelectedPresentation] = useState<string>('');
   const [quantity, setQuantity] = useState<number>(1);
@@ -25,24 +33,20 @@ export default function Sales() {
   const [clientName, setClientName] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
+
+  const { data: products = [] } = useQuery<Product[]>({
+    queryKey: ['products'],
+    queryFn: productService.getAll
+  });
 
   useEffect(() => {
     loadSales();
-    loadProducts();
   }, []);
 
   const loadSales = async () => {
     const { data } = await saleService.getSales();
     if (data) setSales(data);
-  };
-
-  const loadProducts = async () => {
-    try {
-      const data = await productService.getAll();
-      if (data) setProducts(data);
-    } catch (error) {
-      console.error('Error loading products:', error);
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -51,8 +55,8 @@ export default function Sales() {
 
     setLoading(true);
     try {
-      const product = products.find(p => p.id === selectedProduct);
-      const presentation = product?.presentations.find(p => p.id === selectedPresentation);
+      const product = products.find((p: Product) => p.id === selectedProduct);
+      const presentation = product?.presentations.find((p: Presentation) => p.id === selectedPresentation);
       
       if (!product || !presentation) return;
 
@@ -68,21 +72,49 @@ export default function Sales() {
 
       if (result.error) {
         console.error('Error creating sale:', result.error);
+        toast.error('Erreur lors de l\'enregistrement de la vente');
         return;
       }
 
-      // Recharger les ventes et réinitialiser le formulaire
+      // Recharger les ventes et les produits
       await loadSales();
+      // Invalider le cache des produits pour forcer un rechargement
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+
+      // Réinitialiser le formulaire
       setSelectedProduct('');
       setSelectedPresentation('');
       setQuantity(1);
       setClientName('');
       setDescription('');
       setSaleDate(new Date().toISOString().split('T')[0]);
+      
+      toast.success('Vente enregistrée avec succès');
     } catch (error) {
       console.error('Error creating sale:', error);
+      toast.error('Erreur lors de l\'enregistrement de la vente');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (saleId: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette vente ? Cette action est irréversible.')) {
+      return;
+    }
+
+    try {
+      const { error } = await saleService.deleteSale(saleId);
+      if (error) throw error;
+      
+      // Recharger les ventes et les produits
+      await loadSales();
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      
+      toast.success('Vente supprimée avec succès');
+    } catch (error) {
+      console.error('Error deleting sale:', error);
+      toast.error('Erreur lors de la suppression de la vente');
     }
   };
 
@@ -232,6 +264,9 @@ export default function Sales() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Description
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -246,8 +281,9 @@ export default function Sales() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <ShoppingCart className="h-5 w-5 text-gray-400 mr-3" />
-                      <div className="text-sm text-gray-900">
-                        {sale.product?.name}
+                      <div className="text-sm">
+                        <div className="text-gray-900">{sale.product?.name}</div>
+                        <div className="text-gray-500">{sale.presentation?.unit}</div>
                       </div>
                     </div>
                   </td>
@@ -260,8 +296,16 @@ export default function Sales() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                     {formatPrice(sale.total_amount)}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
+                  <td className="px-6 py-4 text-sm text-gray-500 max-w-xs break-words">
                     {sale.description || '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button
+                      onClick={() => handleDelete(sale.id)}
+                      className="text-red-600 hover:text-red-900"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -278,6 +322,7 @@ export default function Sales() {
                     <div>
                       <h3 className="text-sm font-medium text-gray-900">
                         {sale.product?.name}
+                        <span className="text-gray-500 ml-2">({sale.presentation?.unit})</span>
                       </h3>
                       <p className="text-sm text-gray-500">
                         {new Date(sale.sale_date).toLocaleDateString()}
@@ -311,6 +356,14 @@ export default function Sales() {
                       <p className="text-sm text-gray-700">{sale.description}</p>
                     </div>
                   )}
+                  <div className="col-span-2 flex justify-end">
+                    <button
+                      onClick={() => handleDelete(sale.id)}
+                      className="text-red-600 hover:text-red-900"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

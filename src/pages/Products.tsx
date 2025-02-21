@@ -166,12 +166,12 @@ export default function Products() {
                   <tr key={`${product.id}-${presentation.id}`} className="hover:bg-gray-50">
                     {presentationIndex === 0 && (
                       <>
-                        <td className="px-4 py-2 whitespace-nowrap" rowSpan={product.presentations.length}>
+                        <td className="px-4 py-2" rowSpan={product.presentations.length}>
                           <div className="flex items-center">
                             <Package className="h-5 w-5 text-gray-400 mr-2" />
                             <div>
                               <div className="font-medium text-gray-900">{product.name}</div>
-                              <div className="text-gray-500 text-sm">{product.description}</div>
+                              <div className="text-gray-500 text-sm break-words max-w-xs">{product.description}</div>
                             </div>
                           </div>
                         </td>
