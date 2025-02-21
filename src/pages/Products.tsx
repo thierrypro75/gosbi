@@ -11,6 +11,23 @@ import StockAlerts from '../components/stock/StockAlerts';
 import ImportExport from '../components/products/ImportExport';
 import StockMovementHistory from '../components/stock/StockMovementHistory';
 
+const truncateDescription = (description: string = '') => {
+  const words = description.split(' ');
+  if (words.length > 30) {
+    return words.slice(0, 30).join(' ') + '...';
+  }
+  return description;
+};
+
+const formatPrice = (price: number) => {
+  return new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency: 'MGA',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(price);
+};
+
 export default function Products() {
   const [isOffcanvasOpen, setIsOffcanvasOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -171,7 +188,7 @@ export default function Products() {
                             <Package className="h-5 w-5 text-gray-400 mr-2" />
                             <div>
                               <div className="font-medium text-gray-900">{product.name}</div>
-                              <div className="text-gray-500 text-sm break-words max-w-xs">{product.description}</div>
+                              <div className="text-gray-500 text-sm break-words max-w-xs">{truncateDescription(product.description)}</div>
                             </div>
                           </div>
                         </td>
@@ -208,8 +225,8 @@ export default function Products() {
                     </td>
                     <td className="px-4 py-2 whitespace-nowrap">
                       <div className="text-sm text-right">
-                        <div className="font-medium text-gray-900">€{presentation.purchasePrice.toFixed(2)}</div>
-                        <div className="text-gray-500">€{presentation.sellingPrice.toFixed(2)}</div>
+                        <div className="font-medium text-gray-900">{formatPrice(presentation.purchasePrice)}</div>
+                        <div className="text-gray-500">{formatPrice(presentation.sellingPrice)}</div>
                       </div>
                     </td>
                     <td className="px-4 py-2 whitespace-nowrap text-right">
@@ -256,7 +273,7 @@ export default function Products() {
                         {product.name}
                       </h3>
                       <p className="text-xs text-gray-500 truncate">
-                        {product.description}
+                        {truncateDescription(product.description)}
                       </p>
                     </div>
                   </div>
@@ -292,7 +309,7 @@ export default function Products() {
                         </div>
                         <div className="flex items-center space-x-2 flex-shrink-0">
                           <span className="text-xs">
-                            €{presentation.sellingPrice.toFixed(2)}
+                            {formatPrice(presentation.purchasePrice)}
                           </span>
                           <span
                             className={`px-1.5 py-0.5 text-xs leading-none font-medium rounded-full ${

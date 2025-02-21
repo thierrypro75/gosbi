@@ -184,7 +184,8 @@ export default function ProductForm({ id = 'product-form', initialData, onSubmit
                   <input
                     type="number"
                     {...register(`presentations.${index}.stock`, { valueAsNumber: true })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    disabled={!!initialData}
                   />
                   {errors.presentations?.[index]?.stock && (
                     <p className="mt-1 text-sm text-red-600">{errors.presentations[index].stock.message}</p>

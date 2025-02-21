@@ -166,7 +166,8 @@ export const productService = {
             quantityOut: null,
             stockBefore: 0,
             stockAfter: presentation.stock,
-            reason: 'INITIAL'
+            reason: 'INITIAL',
+            status: 'ACTIVE'
           });
         }
       }));
@@ -214,6 +215,29 @@ export const productService = {
 
     // 2. Mettre à jour ou créer les présentations
     if (product.presentations) {
+      // Récupérer les présentations actuelles
+      const { data: currentPresentations } = await supabase
+        .from(PRESENTATIONS_TABLE)
+        .select('id')
+        .eq('product_id', id);
+
+      // Vérifier les mouvements de stock pour les présentations qui vont être supprimées
+      const presentationsToKeep = new Set(product.presentations.map(p => p.id).filter(Boolean));
+      const presentationsToCheck = currentPresentations?.filter(p => !presentationsToKeep.has(p.id)) || [];
+
+      for (const presentation of presentationsToCheck) {
+        const { data: movements } = await supabase
+          .from('stock_movements')
+          .select('reason')
+          .eq('presentation_id', presentation.id)
+          .neq('reason', 'INITIAL');
+
+        if (movements && movements.length > 0) {
+          toast.error('Une présentation ne peut pas être supprimée car elle a des mouvements de stock');
+          throw new Error('Une présentation ne peut pas être supprimée car elle a des mouvements de stock');
+        }
+      }
+
       // Supprimer les anciennes présentations
       await supabase
         .from(PRESENTATIONS_TABLE)
@@ -249,21 +273,32 @@ export const productService = {
   },
 
   async delete(id: string) {
-    // Supprimer d'abord les présentations
-    await supabase
-      .from(PRESENTATIONS_TABLE)
-      .delete()
-      .eq('product_id', id);
+    // Vérifier si le produit a des mouvements de stock non-initiaux
+    const { data: movements, error: movementsError } = await supabase
+      .from('stock_movements')
+      .select('reason')
+      .eq('product_id', id)
+      .neq('reason', 'INITIAL');
 
-    // Puis supprimer le produit
-    const { error } = await supabase
+    if (movementsError) {
+      toast.error('Erreur lors de la vérification des mouvements de stock');
+      throw movementsError;
+    }
+
+    if (movements && movements.length > 0) {
+      toast.error('Ce produit ne peut pas être supprimé car il a des mouvements de stock');
+      throw new Error('Ce produit ne peut pas être supprimé car il a des mouvements de stock');
+    }
+
+    // Si pas de mouvements non-initiaux, supprimer le produit
+    const { error: deleteError } = await supabase
       .from(PRODUCTS_TABLE)
       .delete()
       .eq('id', id);
 
-    if (error) {
+    if (deleteError) {
       toast.error('Erreur lors de la suppression du produit');
-      throw error;
+      throw deleteError;
     }
 
     toast.success('Produit supprimé avec succès');
@@ -337,7 +372,8 @@ export const productService = {
       quantityOut: quantity,
       stockBefore: presentation.stock,
       stockAfter: newStock,
-      reason: 'SALE'
+      reason: 'SALE',
+      status: 'ACTIVE'
     });
 
     // 3. Mettre à jour le stock
@@ -385,7 +421,8 @@ export const productService = {
       quantityOut: null,
       stockBefore: presentation.stock,
       stockAfter: newStock,
-      reason: 'RETURN'
+      reason: 'RETURN',
+      status: 'ACTIVE'
     });
 
     // 3. Mettre à jour le stock
