@@ -43,7 +43,7 @@ export default function Offcanvas({ isOpen, onClose, title, children, footer }: 
 
               {/* Footer */}
               {footer && (
-                <div className="border-t border-gray-200 bg-gray-50 px-4 py-6">
+                <div className="flex-shrink-0 border-t border-gray-200 bg-gray-50 px-4 py-4">
                   {footer}
                 </div>
               )}
