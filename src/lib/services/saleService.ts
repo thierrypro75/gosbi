@@ -205,41 +205,4 @@ export const saleService = {
       return { error: error as Error };
     }
   },
-
-  async testUpdateSaleStatus(saleId: string): Promise<void> {
-    console.log('Testing direct status update for sale:', saleId);
-    
-    // First, check current status
-    const { data: currentSale, error: readError } = await supabase
-      .from('sales')
-      .select('*')
-      .eq('id', saleId)
-      .single();
-    
-    console.log('Current sale:', currentSale);
-    
-    if (readError) {
-      console.error('Error reading sale:', readError);
-      return;
-    }
-
-    // Try to update using the cancel_sale function
-    const { data: updatedSale, error: updateError } = await supabase
-      .rpc('cancel_sale', { sale_id: saleId });
-    
-    console.log('Update attempt result:', { updatedSale, updateError });
-
-    // Verify the update
-    const { data: verifyData, error: verifyError } = await supabase
-      .from('sales')
-      .select('*')
-      .eq('id', saleId)
-      .single();
-    
-    console.log('Verification after update:', { verifyData, verifyError });
-
-    if (verifyData?.status === 'ACTIVE') {
-      console.error('Failed to update status. Current status is still ACTIVE');
-    }
-  },
 }; 

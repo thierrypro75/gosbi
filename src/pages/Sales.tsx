@@ -132,19 +132,6 @@ export default function Sales() {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">Ventes</h1>
         <div className="flex items-center space-x-2">
-          <button
-            onClick={async () => {
-              try {
-                await saleService.testUpdateSaleStatus('ca50c9d4-ec2d-4273-91ab-333c69461344');
-                await loadSales();
-              } catch (error) {
-                console.error('Test error:', error);
-              }
-            }}
-            className="flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-          >
-            Test Update Status
-          </button>
           <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
             <Download className="h-5 w-5 mr-2" />
             Exporter
