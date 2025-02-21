@@ -103,6 +103,7 @@ export const saleService = {
   async getSales(
     startDate?: string,
     endDate?: string,
+    status: 'ACTIVE' | 'CANCELLED' = 'ACTIVE'
   ): Promise<{ data: Sale[] | null; error: Error | null }> {
     let query = supabase
       .from('sales')
@@ -111,7 +112,7 @@ export const saleService = {
         product:products!product_id(name),
         presentation:presentations!presentation_id(unit)
       `)
-      .eq('status', 'ACTIVE')
+      .eq('status', status)
       .order('sale_date', { ascending: false });
 
     if (startDate) {
@@ -147,26 +148,23 @@ export const saleService = {
       
       console.log('Vente trouvée:', sale);
 
-      // 2. Marquer la vente comme annulée
-      const updateResult = await supabase
-        .from('sales')
-        .update({ status: 'CANCELLED' })
-        .eq('id', saleId)
-        .select()
-        .single();
+      // 2. Marquer la vente comme annulée en utilisant la fonction cancel_sale
+      console.log('Tentative de mise à jour du statut...');
+      const { data: updatedSale, error: updateError } = await supabase
+        .rpc('cancel_sale', { sale_id: saleId });
 
-      console.log('Résultat de la mise à jour:', updateResult);
-
-      if (updateResult.error) {
-        console.error('Erreur lors de la mise à jour du statut:', updateResult.error);
-        throw updateResult.error;
+      if (updateError) {
+        console.error('Erreur lors de la mise à jour du statut:', updateError);
+        throw updateError;
       }
 
-      if (!updateResult.data || updateResult.data.status !== 'CANCELLED') {
-        throw new Error('La mise à jour du statut a échoué');
+      if (!updatedSale || updatedSale.status !== 'CANCELLED') {
+        const error = new Error('La mise à jour du statut a échoué');
+        console.error(error);
+        throw error;
       }
-      
-      console.log('Vente marquée comme annulée:', updateResult.data);
+
+      console.log('Vente mise à jour avec succès - nouveau statut:', updatedSale.status);
 
       // 3. Restaurer le stock
       const newStock = sale.presentation.stock + sale.quantity;
@@ -205,6 +203,43 @@ export const saleService = {
     } catch (error) {
       console.error('Error cancelling sale:', error);
       return { error: error as Error };
+    }
+  },
+
+  async testUpdateSaleStatus(saleId: string): Promise<void> {
+    console.log('Testing direct status update for sale:', saleId);
+    
+    // First, check current status
+    const { data: currentSale, error: readError } = await supabase
+      .from('sales')
+      .select('*')
+      .eq('id', saleId)
+      .single();
+    
+    console.log('Current sale:', currentSale);
+    
+    if (readError) {
+      console.error('Error reading sale:', readError);
+      return;
+    }
+
+    // Try to update using the cancel_sale function
+    const { data: updatedSale, error: updateError } = await supabase
+      .rpc('cancel_sale', { sale_id: saleId });
+    
+    console.log('Update attempt result:', { updatedSale, updateError });
+
+    // Verify the update
+    const { data: verifyData, error: verifyError } = await supabase
+      .from('sales')
+      .select('*')
+      .eq('id', saleId)
+      .single();
+    
+    console.log('Verification after update:', { verifyData, verifyError });
+
+    if (verifyData?.status === 'ACTIVE') {
+      console.error('Failed to update status. Current status is still ACTIVE');
     }
   },
 }; 
