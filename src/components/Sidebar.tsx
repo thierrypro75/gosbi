@@ -23,13 +23,15 @@ export default function Sidebar({ onClose }: SidebarProps) {
           <Package className="h-8 w-8 text-blue-600" />
           <span className="ml-2 text-xl font-bold text-gray-900">Gosbi</span>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="md:hidden p-2 rounded-md text-gray-500 hover:text-gray-700"
-        >
-          <X className="h-6 w-6" />
-        </button>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="md:hidden p-2 rounded-md text-gray-500 hover:text-gray-700"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        )}
       </div>
 
       <nav className="flex-1 px-2 pb-4 space-y-1 mt-5">

@@ -105,25 +105,37 @@ export const saleService = {
     endDate?: string,
     status: 'ACTIVE' | 'CANCELLED' = 'ACTIVE'
   ): Promise<{ data: Sale[] | null; error: Error | null }> {
-    let query = supabase
-      .from('sales')
-      .select(`
-        *,
-        product:products!product_id(name),
-        presentation:presentations!presentation_id(unit)
-      `)
-      .eq('status', status)
-      .order('sale_date', { ascending: false });
+    try {
+      let query = supabase
+        .from('sales')
+        .select(`
+          *,
+          product:products!product_id(name),
+          presentation:presentations!presentation_id(unit)
+        `)
+        .eq('status', status)
+        .order('sale_date', { ascending: false });
 
-    if (startDate) {
-      query = query.gte('sale_date', startDate);
-    }
-    if (endDate) {
-      query = query.lte('sale_date', endDate);
-    }
+      if (startDate) {
+        const formattedStartDate = new Date(startDate);
+        formattedStartDate.setHours(0, 0, 0, 0);
+        query = query.gte('sale_date', formattedStartDate.toISOString());
+      }
+      if (endDate) {
+        const formattedEndDate = new Date(endDate);
+        formattedEndDate.setHours(23, 59, 59, 999);
+        query = query.lte('sale_date', formattedEndDate.toISOString());
+      }
 
-    const { data, error } = await query;
-    return { data, error };
+      const { data, error } = await query;
+      
+      if (error) throw error;
+      
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error fetching sales:', error);
+      return { data: null, error: error as Error };
+    }
   },
 
   async deleteSale(saleId: string): Promise<{ error: Error | null }> {
