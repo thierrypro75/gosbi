@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { PrivateRoute } from './PrivateRoute';
 import Sidebar from './Sidebar';
 import Dashboard from '../pages/Dashboard';
@@ -14,16 +14,11 @@ export default function Layout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   if (!user) {
-    return (
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
-    );
+    return <Navigate to="/login" />;
   }
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-gray-100 dark:bg-gray-800">
       {/* Sidebar pour desktop */}
       <div className="hidden md:block">
         <Sidebar />
@@ -39,7 +34,7 @@ export default function Layout() {
           />
           
           {/* Sidebar */}
-          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white">
+          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white dark:bg-gray-900">
             <Sidebar onClose={() => setIsSidebarOpen(false)} />
           </div>
         </div>
@@ -47,52 +42,27 @@ export default function Layout() {
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header mobile avec bouton menu */}
-        <div className="md:hidden bg-white">
-          <div className="flex items-center px-4 py-2">
-            <button
-              type="button"
-              onClick={() => setIsSidebarOpen(true)}
-              className="text-gray-500 hover:text-gray-600"
-            >
-              <Menu className="h-6 w-6" />
-            </button>
-            <div className="flex items-center ml-3">
-              <Package className="h-6 w-6 text-blue-600" />
-              <span className="ml-2 text-lg font-bold text-gray-900">Gosbi</span>
+        <div className="md:hidden bg-white dark:bg-gray-900">
+          <div className="flex items-center justify-between px-4 py-2">
+            <div className="flex items-center">
+              <button
+                type="button"
+                onClick={() => setIsSidebarOpen(true)}
+                className="text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-300"
+              >
+                <Menu className="h-6 w-6" />
+              </button>
+              <div className="flex items-center ml-3">
+                <Package className="h-6 w-6 text-blue-600" />
+                <span className="ml-2 text-lg font-bold text-gray-900 dark:text-white">Gosbi</span>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="flex-1 overflow-auto">
-          <div className="container mx-auto px-6 py-8">
-            <Routes>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route
-                path="/dashboard"
-                element={
-                  <PrivateRoute>
-                    <Dashboard />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/products"
-                element={
-                  <PrivateRoute>
-                    <Products />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/sales"
-                element={
-                  <PrivateRoute>
-                    <Sales />
-                  </PrivateRoute>
-                }
-              />
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
+          <div className="container mx-auto px-6 py-4">
+            <Outlet />
           </div>
         </div>
       </div>

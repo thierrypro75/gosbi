@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Package, LayoutDashboard, ShoppingCart, X, LogOut } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
+import { ThemeToggle } from './ThemeToggle';
 
 const navigation = [
   { name: 'Tableau de bord', href: '/', icon: LayoutDashboard },
@@ -19,17 +20,17 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const { signOut } = useAuth();
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-white dark:bg-gray-900">
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center">
           <Package className="h-8 w-8 text-blue-600" />
-          <span className="ml-2 text-xl font-bold text-gray-900">Gosbi</span>
+          <span className="ml-2 text-xl font-bold text-gray-900 dark:text-white">Gosbi</span>
         </div>
         {onClose && (
           <button
             type="button"
             onClick={onClose}
-            className="md:hidden p-2 rounded-md text-gray-500 hover:text-gray-700"
+            className="md:hidden p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
           >
             <X className="h-6 w-6" />
           </button>
@@ -46,16 +47,16 @@ export default function Sidebar({ onClose }: SidebarProps) {
               onClick={onClose}
               className={cn(
                 item.href === location.pathname
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-gray-600 hover:bg-gray-50',
+                  ? 'bg-blue-50 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400'
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800',
                 'group flex items-center px-2 py-2 text-sm font-medium rounded-md'
               )}
             >
               <Icon
                 className={cn(
                   item.href === location.pathname
-                    ? 'text-blue-600'
-                    : 'text-gray-400 group-hover:text-gray-500',
+                    ? 'text-blue-600 dark:text-blue-400'
+                    : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-500 dark:group-hover:text-gray-400',
                   'mr-3 h-5 w-5'
                 )}
               />
@@ -65,12 +66,13 @@ export default function Sidebar({ onClose }: SidebarProps) {
         })}
       </nav>
 
-      <div className="px-2 pb-4">
+      <div className="px-2 pb-4 space-y-1">
+        <ThemeToggle />
         <button
           onClick={() => signOut()}
-          className="w-full group flex items-center px-2 py-2 text-sm font-medium rounded-md text-red-600 hover:bg-red-50"
+          className="w-full group flex items-center px-2 py-2 text-sm font-medium rounded-md text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/50"
         >
-          <LogOut className="mr-3 h-5 w-5 text-red-400 group-hover:text-red-500" />
+          <LogOut className="mr-3 h-5 w-5 text-red-400 dark:text-red-500 group-hover:text-red-500 dark:group-hover:text-red-400" />
           Déconnexion
         </button>
       </div>
