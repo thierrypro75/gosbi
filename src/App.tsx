@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
 import Sales from './pages/Sales';
 import Login from './pages/Login';
+import ResetPassword from './pages/ResetPassword';
 import { AuthProvider } from './contexts/AuthContext';
 
 const queryClient = new QueryClient();
@@ -36,6 +37,10 @@ const router = createBrowserRouter([
   {
     path: '/login',
     element: <Login />,
+  },
+  {
+    path: '/reset-password',
+    element: <ResetPassword />,
   },
 ]);
 
