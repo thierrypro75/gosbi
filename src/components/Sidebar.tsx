@@ -1,14 +1,15 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Package, LayoutDashboard, ShoppingCart, X, LogOut } from 'lucide-react';
+import { Package, LayoutDashboard, ShoppingCart, X, LogOut, PackagePlus } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 import { ThemeToggle } from './ThemeToggle';
 
 const navigation = [
-  { name: 'Tableau de bord', href: '/', icon: LayoutDashboard },
+  { name: 'Tableau de bord', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Produits', href: '/products', icon: Package },
   { name: 'Ventes', href: '/sales', icon: ShoppingCart },
+  { name: 'Approvisionnement', href: '/supplies', icon: PackagePlus },
 ];
 
 interface SidebarProps {

@@ -15,7 +15,8 @@ const reasonLabels = {
   'ADJUSTMENT': 'Ajustement manuel',
   'SALE': 'Vente',
   'RETURN': 'Retour',
-  'CORRECTION': 'Correction'
+  'CORRECTION': 'Correction',
+  'SUPPLY': 'Approvisionnement'
 };
 
 type ViewMode = 'table' | 'chart';

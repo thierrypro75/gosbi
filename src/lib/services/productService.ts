@@ -213,58 +213,106 @@ export const productService = {
       throw productError;
     }
 
-    // 2. Mettre à jour ou créer les présentations
+    // 2. Mettre à jour les présentations
     if (product.presentations) {
       // Récupérer les présentations actuelles
       const { data: currentPresentations } = await supabase
         .from(PRESENTATIONS_TABLE)
-        .select('id')
+        .select('*')
         .eq('product_id', id);
 
-      // Vérifier les mouvements de stock pour les présentations qui vont être supprimées
-      const presentationsToKeep = new Set(product.presentations.map(p => p.id).filter(Boolean));
-      const presentationsToCheck = currentPresentations?.filter(p => !presentationsToKeep.has(p.id)) || [];
+      const currentPresentationsMap = new Map(
+        currentPresentations?.map(p => [p.id, p]) || []
+      );
 
-      for (const presentation of presentationsToCheck) {
+      // Identifier les présentations à créer, mettre à jour ou supprimer
+      const presentationsToUpdate = [];
+      const presentationsToCreate = [];
+      const presentationIdsToKeep = new Set();
+
+      for (const [index, presentation] of product.presentations.entries()) {
+        if (presentation.id && currentPresentationsMap.has(presentation.id)) {
+          // Mise à jour d'une présentation existante
+          presentationsToUpdate.push({
+            id: presentation.id,
+            unit: presentation.unit,
+            purchase_price: presentation.purchasePrice,
+            selling_price: presentation.sellingPrice,
+            low_stock_threshold: presentation.lowStockThreshold,
+            updated_at: new Date().toISOString()
+          });
+          presentationIdsToKeep.add(presentation.id);
+        } else {
+          // Nouvelle présentation
+          presentationsToCreate.push({
+            product_id: id,
+            unit: presentation.unit,
+            purchase_price: presentation.purchasePrice,
+            selling_price: presentation.sellingPrice,
+            stock: presentation.stock || 0,
+            low_stock_threshold: presentation.lowStockThreshold,
+            sku: generateSKU(product.name!, presentation.unit, index),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+        }
+      }
+
+      // Vérifier les présentations à supprimer
+      const presentationsToDelete = currentPresentations
+        ?.filter(p => !presentationIdsToKeep.has(p.id))
+        .map(p => p.id) || [];
+
+      // Vérifier s'il y a des mouvements de stock pour les présentations à supprimer
+      if (presentationsToDelete.length > 0) {
         const { data: movements } = await supabase
           .from('stock_movements')
-          .select('reason')
-          .eq('presentation_id', presentation.id)
+          .select('presentation_id')
+          .in('presentation_id', presentationsToDelete)
           .neq('reason', 'INITIAL');
 
         if (movements && movements.length > 0) {
           toast.error('Une présentation ne peut pas être supprimée car elle a des mouvements de stock');
           throw new Error('Une présentation ne peut pas être supprimée car elle a des mouvements de stock');
         }
+
+        // Supprimer les présentations qui n'ont pas de mouvements
+        const { error: deleteError } = await supabase
+          .from(PRESENTATIONS_TABLE)
+          .delete()
+          .in('id', presentationsToDelete);
+
+        if (deleteError) {
+          toast.error('Erreur lors de la suppression des présentations');
+          throw deleteError;
+        }
       }
 
-      // Supprimer les anciennes présentations
-      await supabase
-        .from(PRESENTATIONS_TABLE)
-        .delete()
-        .eq('product_id', id);
+      // Mettre à jour les présentations existantes
+      if (presentationsToUpdate.length > 0) {
+        for (const presentation of presentationsToUpdate) {
+          const { error: updateError } = await supabase
+            .from(PRESENTATIONS_TABLE)
+            .update(presentation)
+            .eq('id', presentation.id);
+
+          if (updateError) {
+            toast.error('Erreur lors de la mise à jour des présentations');
+            throw updateError;
+          }
+        }
+      }
 
       // Créer les nouvelles présentations
-      const presentationsToCreate = product.presentations.map((presentation, index) => ({
-        product_id: id,
-        unit: presentation.unit,
-        purchase_price: presentation.purchasePrice,
-        selling_price: presentation.sellingPrice,
-        stock: presentation.stock,
-        low_stock_threshold: presentation.lowStockThreshold,
-        sku: generateSKU(product.name!, presentation.unit, index),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }));
+      if (presentationsToCreate.length > 0) {
+        const { error: createError } = await supabase
+          .from(PRESENTATIONS_TABLE)
+          .insert(presentationsToCreate);
 
-      const { error: presentationsError } = await supabase
-        .from(PRESENTATIONS_TABLE)
-        .insert(presentationsToCreate)
-        .select();
-
-      if (presentationsError) {
-        toast.error('Erreur lors de la mise à jour des présentations');
-        throw presentationsError;
+        if (createError) {
+          toast.error('Erreur lors de la création des présentations');
+          throw createError;
+        }
       }
     }
 
