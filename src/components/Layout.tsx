@@ -6,7 +6,7 @@ import Products from '../pages/Products';
 import Sales from '../pages/Sales';
 import Login from '../pages/Login';
 import { useAuth } from '../contexts/AuthContext';
-import { Menu } from 'lucide-react';
+import { Menu, Package } from 'lucide-react';
 import { useState } from 'react';
 
 export default function Layout() {
@@ -56,6 +56,10 @@ export default function Layout() {
             >
               <Menu className="h-6 w-6" />
             </button>
+            <div className="flex items-center ml-3">
+              <Package className="h-6 w-6 text-blue-600" />
+              <span className="ml-2 text-lg font-bold text-gray-900">Gosbi</span>
+            </div>
           </div>
         </div>
 
