@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
-import { Package, TrendingUp, AlertTriangle, DollarSign, ShoppingBag, TrendingDown } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { DollarSign, ShoppingBag, AlertTriangle } from 'lucide-react';
 import { saleService } from '../lib/services/saleService';
 import { formatPrice } from '../lib/utils';
 import { format } from 'date-fns';
@@ -8,7 +8,7 @@ import { fr } from 'date-fns/locale';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
-const wrapLabel = (text: string, maxWidth: number = 20) => {
+const wrapLabel = (text: string, maxWidth = 20) => {
   const words = text.split(' ');
   const lines = [];
   let currentLine = '';
@@ -60,8 +60,10 @@ interface TimelineData {
   amount: number;
 }
 
+type TimeframeType = 'day' | 'week' | 'month' | 'year' | 'last3months' | 'last6months' | 'lastyear' | 'last2years';
+
 export default function Dashboard() {
-  const [timeframe, setTimeframe] = useState<'day' | 'week' | 'month' | 'year' | 'last3months' | 'last6months' | 'lastyear' | 'last2years'>('month');
+  const [timeframe, setTimeframe] = useState<TimeframeType>('month');
   const [salesData, setSalesData] = useState<TimelineData[]>([]);
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     totalRevenue: 0,
@@ -72,10 +74,6 @@ export default function Dashboard() {
     revenueGrowth: 0,
     lowStockCount: 0
   });
-
-  useEffect(() => {
-    loadDashboardData();
-  }, [timeframe]);
 
   const loadDashboardData = async () => {
     try {
@@ -224,15 +222,32 @@ export default function Dashboard() {
     }
   };
 
+  useEffect(() => {
+    void loadDashboardData();
+  }, [timeframe]);
+
+  const getTimeframeLabel = () => {
+    switch (timeframe) {
+      case 'day': return 'hier';
+      case 'week': return 'la semaine dernière';
+      case 'month': return 'au mois dernier';
+      case 'last3months': return 'aux 3 mois précédents';
+      case 'last6months': return 'aux 6 mois précédents';
+      case 'lastyear': return "à l'année précédente";
+      case 'last2years': return 'aux 2 années précédentes';
+      default: return "l'année dernière";
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Tableau de bord</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Tableau de bord</h1>
         <div className="flex space-x-2">
           <select
             value={timeframe}
-            onChange={(e) => setTimeframe(e.target.value as any)}
-            className="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            onChange={(e) => setTimeframe(e.target.value as TimeframeType)}
+            className="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
           >
             <option value="day">Aujourd'hui</option>
             <option value="week">Cette semaine</option>
@@ -247,48 +262,39 @@ export default function Dashboard() {
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow-md">
+        <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-md">
           <div className="flex items-center">
             <DollarSign className="h-8 w-8 text-green-500" />
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Chiffre d'affaires total</p>
-              <p className="text-2xl font-semibold text-gray-900">{formatPrice(metrics.totalRevenue)}</p>
-              <p className="text-sm text-green-600">
-                {metrics.revenueGrowth >= 0 ? '+' : ''}{metrics.revenueGrowth.toFixed(1)}% par rapport à {
-                  timeframe === 'day' ? "hier" :
-                  timeframe === 'week' ? "la semaine dernière" :
-                  timeframe === 'month' ? "au mois dernier" :
-                  timeframe === 'last3months' ? "aux 3 mois précédents" :
-                  timeframe === 'last6months' ? "aux 6 mois précédents" :
-                  timeframe === 'lastyear' ? "à l'année précédente" :
-                  timeframe === 'last2years' ? "aux 2 années précédentes" :
-                  "l'année dernière"
-                }
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Chiffre d'affaires total</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{formatPrice(metrics.totalRevenue)}</p>
+              <p className="text-sm text-green-600 dark:text-green-400">
+                {metrics.revenueGrowth >= 0 ? '+' : ''}{metrics.revenueGrowth.toFixed(1)}% par rapport à {getTimeframeLabel()}
               </p>
             </div>
           </div>
         </div>
         
-        <div className="bg-white p-6 rounded-lg shadow-md">
+        <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-md">
           <div className="flex items-center">
             <ShoppingBag className="h-8 w-8 text-blue-500" />
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Nombre de ventes</p>
-              <p className="text-2xl font-semibold text-gray-900">{metrics.totalSales}</p>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Nombre de ventes</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{metrics.totalSales}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 Panier moyen: {formatPrice(metrics.averageOrderValue)}
               </p>
             </div>
           </div>
         </div>
         
-        <div className="bg-white p-6 rounded-lg shadow-md">
+        <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-md">
           <div className="flex items-center">
             <AlertTriangle className="h-8 w-8 text-yellow-500" />
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Alertes de stock</p>
-              <p className="text-2xl font-semibold text-gray-900">{metrics.lowStockCount}</p>
-              <p className="text-sm text-yellow-600">Produits en stock faible</p>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Alertes de stock</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{metrics.lowStockCount}</p>
+              <p className="text-sm text-yellow-600 dark:text-yellow-400">Produits en stock faible</p>
             </div>
           </div>
         </div>
@@ -296,8 +302,8 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 gap-6">
         {/* Évolution du chiffre d'affaires */}
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Évolution du chiffre d'affaires</h2>
+        <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-md">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Évolution du chiffre d'affaires</h2>
           <div className="h-96">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart 
@@ -317,13 +323,15 @@ export default function Dashboard() {
                   height={60}
                   interval={0}
                   tick={{fontSize: 12}}
+                  stroke="#9CA3AF"
                 />
                 <YAxis 
-                  tickFormatter={(value) => formatAmountInK(value)}
+                  tickFormatter={formatAmountInK}
                   width={80}
                   tick={{fontSize: 12}}
                   tickCount={8}
                   domain={[0, 'dataMax + 1000']}
+                  stroke="#9CA3AF"
                 />
                 <Tooltip 
                   formatter={(value: number) => formatPrice(value)}
@@ -342,8 +350,8 @@ export default function Dashboard() {
 
         {/* Top produits */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Top produits</h2>
+          <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-md">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Top produits</h2>
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -365,7 +373,7 @@ export default function Dashboard() {
                       );
                     }}
                   >
-                    {metrics.topProductsAggregated.map((entry, index) => (
+                    {metrics.topProductsAggregated.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
@@ -378,7 +386,7 @@ export default function Dashboard() {
             <div className="mt-4">
               <ul className="space-y-2">
                 {metrics.topProductsAggregated.map((product, index) => (
-                  <li key={index} className="flex items-center justify-between">
+                  <li key={index} className="flex items-center justify-between text-gray-900 dark:text-white">
                     <span className="flex items-center">
                       <span className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
                       {product.name}
@@ -390,8 +398,8 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Top produits par présentation</h2>
+          <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-md">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Top produits par présentation</h2>
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -414,7 +422,7 @@ export default function Dashboard() {
                       );
                     }}
                   >
-                    {metrics.topProducts.map((entry, index) => (
+                    {metrics.topProducts.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
@@ -431,7 +439,7 @@ export default function Dashboard() {
             <div className="mt-4">
               <ul className="space-y-2">
                 {metrics.topProducts.map((product, index) => (
-                  <li key={index} className="flex items-center justify-between">
+                  <li key={index} className="flex items-center justify-between text-gray-900 dark:text-white">
                     <span className="flex items-center">
                       <span className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
                       {product.name} ({product.presentation})

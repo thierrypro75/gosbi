@@ -1,10 +1,5 @@
-import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { PrivateRoute } from './PrivateRoute';
+import { Navigate, Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
-import Dashboard from '../pages/Dashboard';
-import Products from '../pages/Products';
-import Sales from '../pages/Sales';
-import Login from '../pages/Login';
 import { useAuth } from '../contexts/AuthContext';
 import { Menu, Package } from 'lucide-react';
 import { useState } from 'react';
