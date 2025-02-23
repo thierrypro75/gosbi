@@ -131,8 +131,8 @@ export default function SupplyReceive() {
         </button>
       </div>
 
-      <div className="bg-white shadow-sm rounded-lg p-6">
-        <div className="mb-6">
+      <div className="bg-white shadow-sm rounded-lg flex flex-col h-[calc(100vh-8rem)]">
+        <div className="p-6">
           <h1 className="text-2xl font-bold">
             Réception de la commande du {format(new Date(supply.created_at!), 'dd/MM/yyyy HH:mm', { locale: fr })}
           </h1>
@@ -141,100 +141,182 @@ export default function SupplyReceive() {
           )}
         </div>
 
-        <div className="space-y-6">
-          {receiptLines.map((line, index) => (
-            <div key={line.id} className="border rounded-lg p-4">
-              {/* En-tête avec nom du produit et présentation */}
-              <div className="flex items-center gap-2 mb-4">
-                <h3 className="font-medium">{line.product?.name}</h3>
-                <span className="text-sm text-gray-600">({line.presentation?.unit})</span>
-              </div>
+        {/* Vue desktop */}
+        <div className="hidden md:flex flex-col flex-1 overflow-hidden">
+          <div className="shadow-sm relative z-10">
+            <table className="min-w-full divide-y divide-gray-200 border-b border-gray-200">
+              <thead className="bg-gray-50 shadow-sm">
+                <tr>
+                  <th scope="col" className="sticky top-0 bg-gray-50 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase shadow-sm border-x border-gray-200 w-1/4">Produit</th>
+                  <th scope="col" className="sticky top-0 bg-gray-50 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase shadow-sm border-r border-gray-200 w-[120px]">Commandé</th>
+                  <th scope="col" className="sticky top-0 bg-gray-50 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase shadow-sm border-r border-gray-200 w-[120px]">Reçu</th>
+                  <th scope="col" className="sticky top-0 bg-gray-50 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase shadow-sm border-r border-gray-200 w-[120px]">Prix d'achat</th>
+                  <th scope="col" className="sticky top-0 bg-gray-50 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase shadow-sm border-r border-gray-200 w-[120px]">Prix de vente</th>
+                  <th scope="col" className="sticky top-0 bg-gray-50 px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase shadow-sm border-r border-gray-200 w-[100px]">État</th>
+                </tr>
+              </thead>
+            </table>
+          </div>
+          <div className="flex-1 overflow-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-gray-200">
+                {receiptLines.map((line, index) => (
+                  <tr key={line.id} className="hover:bg-gray-50">
+                    <td className="px-3 py-4 border-x border-gray-200 w-1/4">
+                      <div className="font-medium">{line.product?.name}</div>
+                      <div className="text-sm text-gray-600">{line.presentation?.unit}</div>
+                    </td>
+                    <td className="px-3 py-4 text-right text-gray-500 border-r border-gray-200 w-[120px]">
+                      {line.ordered_quantity}
+                    </td>
+                    <td className="px-3 py-4 border-r border-gray-200 w-[120px]">
+                      <input
+                        type="number"
+                        min="0"
+                        max={line.ordered_quantity}
+                        value={line.receivedQuantity}
+                        onChange={(e) => handleQuantityChange(index, parseInt(e.target.value) || 0)}
+                        className="w-24 px-2 py-1 text-right border rounded-md"
+                      />
+                    </td>
+                    <td className="px-3 py-4 border-r border-gray-200 w-[120px]">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={line.purchasePrice}
+                        onChange={(e) => handlePriceChange(index, 'purchasePrice', parseFloat(e.target.value) || 0)}
+                        className="w-24 px-2 py-1 text-right border rounded-md"
+                      />
+                    </td>
+                    <td className="px-3 py-4 border-r border-gray-200 w-[120px]">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={line.sellingPrice}
+                        onChange={(e) => handlePriceChange(index, 'sellingPrice', parseFloat(e.target.value) || 0)}
+                        className="w-24 px-2 py-1 text-right border rounded-md"
+                      />
+                    </td>
+                    <td className="px-3 py-4 border-r border-gray-200 w-[100px]">
+                      <div className="flex justify-center">
+                        <div
+                          className={`flex justify-center items-center w-10 h-10 rounded-md ${
+                            line.status === 'RECEPTIONNE'
+                              ? 'bg-green-100 text-green-800'
+                              : line.status === 'PARTIELLEMENT_RECEPTIONNE'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : line.status === 'NON_RECEPTIONNE'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {line.status === 'RECEPTIONNE' && <PackageCheck className="w-6 h-6" />}
+                          {line.status === 'PARTIELLEMENT_RECEPTIONNE' && <PackageCheck className="w-6 h-6" />}
+                          {line.status === 'NON_RECEPTIONNE' && <PackageX className="w-6 h-6" />}
+                          {line.status === 'EN_ATTENTE' && <PackageX className="w-6 h-6" />}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                {/* Quantité commandée et reçue */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-sm font-medium text-gray-700">
+        {/* Vue mobile */}
+        <div className="md:hidden flex-1 overflow-auto p-6">
+          <div className="space-y-6">
+            {receiptLines.map((line, index) => (
+              <div key={line.id} className="border rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <h3 className="font-medium">{line.product?.name}</h3>
+                  <span className="text-sm text-gray-600">({line.presentation?.unit})</span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Quantité commandée
+                    </label>
+                    <div className="w-full px-3 py-2 border rounded-md bg-gray-50">
+                      {line.ordered_quantity}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       Quantité reçue
                     </label>
-                    <span className="text-sm text-gray-600">
-                      Commandé : {line.ordered_quantity}
-                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      max={line.ordered_quantity}
+                      value={line.receivedQuantity}
+                      onChange={(e) => handleQuantityChange(index, parseInt(e.target.value) || 0)}
+                      className="w-full px-3 py-2 border rounded-md"
+                    />
                   </div>
-                  <input
-                    type="number"
-                    min="0"
-                    max={line.ordered_quantity}
-                    value={line.receivedQuantity}
-                    onChange={(e) => handleQuantityChange(index, parseInt(e.target.value) || 0)}
-                    className="w-full px-3 py-2 border rounded-md"
-                  />
-                </div>
 
-                {/* Prix d'achat */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Prix d'achat
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={line.purchasePrice}
-                    onChange={(e) => handlePriceChange(index, 'purchasePrice', parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 border rounded-md"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Prix d'achat
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={line.purchasePrice}
+                      onChange={(e) => handlePriceChange(index, 'purchasePrice', parseFloat(e.target.value) || 0)}
+                      className="w-full px-3 py-2 border rounded-md"
+                    />
+                  </div>
 
-                {/* Prix de vente */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Prix de vente
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={line.sellingPrice}
-                    onChange={(e) => handlePriceChange(index, 'sellingPrice', parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 border rounded-md"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Prix de vente
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={line.sellingPrice}
+                      onChange={(e) => handlePriceChange(index, 'sellingPrice', parseFloat(e.target.value) || 0)}
+                      className="w-full px-3 py-2 border rounded-md"
+                    />
+                  </div>
 
-                {/* Statut */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    État
-                  </label>
-                  <span
-                    className={`inline-flex items-center px-2.5 py-2 rounded-md text-sm font-medium w-full ${
-                      line.status === 'RECEPTIONNE'
-                        ? 'bg-green-100 text-green-800'
-                        : line.status === 'PARTIELLEMENT_RECEPTIONNE'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : line.status === 'NON_RECEPTIONNE'
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}
-                  >
-                    {line.status === 'RECEPTIONNE' && <PackageCheck className="w-4 h-4 mr-1" />}
-                    {line.status === 'NON_RECEPTIONNE' && <PackageX className="w-4 h-4 mr-1" />}
-                    {line.status === 'RECEPTIONNE'
-                      ? 'Réceptionné'
-                      : line.status === 'PARTIELLEMENT_RECEPTIONNE'
-                      ? 'Partiellement reçu'
-                      : line.status === 'NON_RECEPTIONNE'
-                      ? 'Non reçu'
-                      : 'En attente'}
-                  </span>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      État
+                    </label>
+                    <div
+                      className={`flex justify-center items-center h-[42px] rounded-md ${
+                        line.status === 'RECEPTIONNE'
+                          ? 'bg-green-100 text-green-800'
+                          : line.status === 'PARTIELLEMENT_RECEPTIONNE'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : line.status === 'NON_RECEPTIONNE'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}
+                    >
+                      {line.status === 'RECEPTIONNE' && <PackageCheck className="w-6 h-6" />}
+                      {line.status === 'PARTIELLEMENT_RECEPTIONNE' && <PackageCheck className="w-6 h-6" />}
+                      {line.status === 'NON_RECEPTIONNE' && <PackageX className="w-6 h-6" />}
+                      {line.status === 'EN_ATTENTE' && <PackageX className="w-6 h-6" />}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
         {/* Boutons d'action */}
-        <div className="flex justify-end space-x-3 mt-6">
+        <div className="sticky bottom-0 bg-white border-t p-4 flex justify-end space-x-3">
           <button
             type="button"
             onClick={() => navigate('/supplies')}
