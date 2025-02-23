@@ -1,4 +1,3 @@
-import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Package, LayoutDashboard, ShoppingCart, X, LogOut, PackagePlus } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -19,6 +18,10 @@ interface SidebarProps {
 export default function Sidebar({ onClose }: SidebarProps) {
   const location = useLocation();
   const { signOut } = useAuth();
+
+  const isPathActive = (path: string) => {
+    return location.pathname.startsWith(path);
+  };
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-900">
@@ -47,7 +50,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
               to={item.href}
               onClick={onClose}
               className={cn(
-                item.href === location.pathname
+                isPathActive(item.href)
                   ? 'bg-blue-50 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400'
                   : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800',
                 'group flex items-center px-2 py-2 text-sm font-medium rounded-md'
@@ -55,7 +58,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
             >
               <Icon
                 className={cn(
-                  item.href === location.pathname
+                  isPathActive(item.href)
                     ? 'text-blue-600 dark:text-blue-400'
                     : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-500 dark:group-hover:text-gray-400',
                   'mr-3 h-5 w-5'
