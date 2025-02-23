@@ -9,7 +9,8 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 interface ReceiptLine extends SupplyLine {
-  receivedQuantity: number;
+  receivedQuantity: number;  // quantité déjà reçue
+  newQuantity: number;       // quantité à recevoir maintenant
   ordered_quantity: number;
   purchasePrice: number;
   sellingPrice: number;
@@ -35,30 +36,16 @@ export default function SupplyReceive() {
   // Initialiser les lignes de réception quand les données sont chargées
   useEffect(() => {
     if (supply && !receiptLines.length) {
-      console.log('Supply data:', supply);
-      console.log('Supply lines:', supply.lines);
-      supply.lines.forEach((line: any, index) => {
-        console.log(`Line ${index + 1}:`, {
-          id: line.id,
-          orderedQuantity: line.orderedQuantity,
-          ordered_quantity: line.ordered_quantity,
-          receivedQuantity: line.receivedQuantity,
-          received_quantity: line.received_quantity,
-          product: line.product,
-          presentation: line.presentation
-        });
-      });
       setReceiptLines(
-        supply.lines.map((line: any) => {
-          return {
-            ...line,
-            ordered_quantity: line.ordered_quantity,
-            receivedQuantity: line.received_quantity || line.ordered_quantity,
-            purchasePrice: line.purchase_price || 0,
-            sellingPrice: line.selling_price || 0,
-            status: line.received_quantity === 0 ? 'RECEPTIONNE' : line.status
-          };
-        })
+        supply.lines.map((line: any) => ({
+          ...line,
+          ordered_quantity: line.ordered_quantity,
+          receivedQuantity: line.received_quantity || 0,
+          newQuantity: 0,  // Initialiser à 0
+          purchasePrice: line.purchase_price || 0,
+          sellingPrice: line.selling_price || 0,
+          status: line.status || 'EN_ATTENTE'
+        }))
       );
     }
   }, [supply]);
@@ -81,12 +68,14 @@ export default function SupplyReceive() {
   const handleQuantityChange = (index: number, value: number) => {
     const newLines = [...receiptLines];
     const line = newLines[index];
-    line.receivedQuantity = value;
+    line.newQuantity = value;
 
-    // Mettre à jour le statut en fonction de la quantité reçue
-    if (value === 0) {
+    const totalReceived = line.receivedQuantity + value;
+
+    // Mettre à jour le statut en fonction de la quantité totale reçue
+    if (totalReceived === 0) {
       line.status = 'NON_RECEPTIONNE';
-    } else if (value >= line.ordered_quantity) {
+    } else if (totalReceived >= line.ordered_quantity) {
       line.status = 'RECEPTIONNE';
     } else {
       line.status = 'PARTIELLEMENT_RECEPTIONNE';
@@ -103,9 +92,11 @@ export default function SupplyReceive() {
 
   const handleSubmit = async () => {
     try {
-      // Mettre à jour chaque ligne
       await Promise.all(
-        receiptLines.map(line => updateLineMutation.mutateAsync(line))
+        receiptLines.map(line => updateLineMutation.mutateAsync({
+          ...line,
+          receivedQuantity: line.receivedQuantity + (line.newQuantity || 0)
+        }))
       );
 
       toast.success('Réception enregistrée avec succès');
@@ -149,7 +140,8 @@ export default function SupplyReceive() {
                 <tr>
                   <th scope="col" className="sticky top-0 bg-gray-50 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase shadow-sm border-x border-gray-200 w-1/4">Produit</th>
                   <th scope="col" className="sticky top-0 bg-gray-50 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase shadow-sm border-r border-gray-200 w-[120px]">Commandé</th>
-                  <th scope="col" className="sticky top-0 bg-gray-50 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase shadow-sm border-r border-gray-200 w-[120px]">Reçu</th>
+                  <th scope="col" className="sticky top-0 bg-gray-50 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase shadow-sm border-r border-gray-200 w-[120px]">Déjà reçu</th>
+                  <th scope="col" className="sticky top-0 bg-gray-50 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase shadow-sm border-r border-gray-200 w-[120px]">À recevoir</th>
                   <th scope="col" className="sticky top-0 bg-gray-50 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase shadow-sm border-r border-gray-200 w-[120px]">Prix d'achat</th>
                   <th scope="col" className="sticky top-0 bg-gray-50 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase shadow-sm border-r border-gray-200 w-[120px]">Prix de vente</th>
                   <th scope="col" className="sticky top-0 bg-gray-50 px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase shadow-sm border-r border-gray-200 w-[100px]">État</th>
@@ -169,15 +161,24 @@ export default function SupplyReceive() {
                     <td className="px-3 py-4 text-right text-gray-500 border-r border-gray-200 w-[120px]">
                       {line.ordered_quantity}
                     </td>
+                    <td className="px-3 py-4 text-right text-gray-500 border-r border-gray-200 w-[120px]">
+                      {line.receivedQuantity}
+                    </td>
                     <td className="px-3 py-4 border-r border-gray-200 w-[120px]">
-                      <input
-                        type="number"
-                        min="0"
-                        max={line.ordered_quantity}
-                        value={line.receivedQuantity}
-                        onChange={(e) => handleQuantityChange(index, parseInt(e.target.value) || 0)}
-                        className="w-24 px-2 py-1 text-right border rounded-md"
-                      />
+                      {line.ordered_quantity - line.receivedQuantity === 0 ? (
+                        <div className="text-gray-500 text-right">0</div>
+                      ) : (
+                        <input
+                          type="number"
+                          min="0"
+                          max={line.ordered_quantity - line.receivedQuantity}
+                          value={line.newQuantity}
+                          onChange={(e) => handleQuantityChange(index, parseInt(e.target.value) || 0)}
+                          className="w-24 px-2 py-1 text-right border rounded-md"
+                          placeholder={`Reste: ${line.ordered_quantity - line.receivedQuantity}`}
+                          disabled={line.ordered_quantity - line.receivedQuantity === 0}
+                        />
+                      )}
                     </td>
                     <td className="px-3 py-4 border-r border-gray-200 w-[120px]">
                       <input
@@ -248,16 +249,33 @@ export default function SupplyReceive() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Quantité reçue
+                      Déjà reçu
                     </label>
-                    <input
-                      type="number"
-                      min="0"
-                      max={line.ordered_quantity}
-                      value={line.receivedQuantity}
-                      onChange={(e) => handleQuantityChange(index, parseInt(e.target.value) || 0)}
-                      className="w-full px-3 py-2 border rounded-md"
-                    />
+                    <div className="w-full px-3 py-2 border rounded-md bg-gray-50">
+                      {line.receivedQuantity}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      À recevoir
+                    </label>
+                    {line.ordered_quantity - line.receivedQuantity === 0 ? (
+                      <div className="w-full px-3 py-2 border rounded-md bg-gray-50 text-gray-500">
+                        0
+                      </div>
+                    ) : (
+                      <input
+                        type="number"
+                        min="0"
+                        max={line.ordered_quantity - line.receivedQuantity}
+                        value={line.newQuantity}
+                        onChange={(e) => handleQuantityChange(index, parseInt(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border rounded-md"
+                        placeholder={`Reste: ${line.ordered_quantity - line.receivedQuantity}`}
+                        disabled={line.ordered_quantity - line.receivedQuantity === 0}
+                      />
+                    )}
                   </div>
 
                   <div>

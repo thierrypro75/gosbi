@@ -108,9 +108,10 @@ export const supplyService = {
   },
 
   async updateLine(id: string, data: SupplyLineUpdate) {
-    const { data: line, error: getError } = await supabase
+    // Récupérer d'abord la ligne actuelle pour avoir l'ancienne quantité reçue
+    const { data: currentLine, error: getError } = await supabase
       .from(SUPPLY_LINES_TABLE)
-      .select('*')
+      .select('*, presentation:presentations(*)')
       .eq('id', id)
       .single();
 
@@ -118,6 +119,9 @@ export const supplyService = {
       console.error('Error fetching supply line:', getError);
       throw getError;
     }
+
+    // Calculer la différence de quantité pour le mouvement de stock
+    const quantityDiff = (data.receivedQuantity || 0) - (currentLine.received_quantity || 0);
 
     // Mise à jour de la ligne
     const { error: updateError } = await supabase
@@ -135,27 +139,51 @@ export const supplyService = {
       throw updateError;
     }
 
-    // Si la ligne est réceptionnée (partiellement ou totalement), mettre à jour le stock
-    if (data.receivedQuantity && data.receivedQuantity > 0) {
+    // Si il y a une différence de quantité, créer un mouvement de stock
+    if (quantityDiff !== 0) {
       try {
         await stockMovementService.create({
-          productId: line.product_id,
-          presentationId: line.presentation_id,
-          quantityIn: data.receivedQuantity,
-          quantityOut: null,
-          stockBefore: 0, // Sera calculé par le service
-          stockAfter: 0, // Sera calculé par le service
+          productId: currentLine.product_id,
+          presentationId: currentLine.presentation_id,
+          quantityIn: quantityDiff > 0 ? quantityDiff : null,
+          quantityOut: quantityDiff < 0 ? -quantityDiff : null,
+          stockBefore: currentLine.presentation.stock,
+          stockAfter: currentLine.presentation.stock + quantityDiff,
           reason: 'SUPPLY',
           status: 'ACTIVE'
         });
+
+        // Mettre à jour le stock de la présentation
+        await supabase
+          .from('presentations')
+          .update({ 
+            stock: currentLine.presentation.stock + quantityDiff,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', currentLine.presentation_id);
+
       } catch (error) {
-        console.error('Error creating stock movement:', error);
+        console.error('Error updating stock:', error);
         toast.error('Erreur lors de la mise à jour du stock');
         throw error;
       }
     }
 
-    return this.getById(line.supply_id);
+    // Mettre à jour le statut de la commande
+    const updatedSupply = await this.getById(currentLine.supply_id);
+    const newStatus = this.calculateSupplyStatus(updatedSupply.lines);
+
+    const { error: statusError } = await supabase
+      .from(SUPPLIES_TABLE)
+      .update({ status: newStatus })
+      .eq('id', currentLine.supply_id);
+
+    if (statusError) {
+      console.error('Error updating supply status:', statusError);
+      throw statusError;
+    }
+
+    return updatedSupply;
   },
 
   async delete(id: string) {
@@ -168,5 +196,17 @@ export const supplyService = {
       console.error('Error deleting supply:', error);
       throw error;
     }
+  },
+
+  calculateSupplyStatus(lines: SupplyLine[]): SupplyStatus {
+    if (lines.length === 0) return 'COMMANDE_INITIEE';
+
+    const totalReceived = lines.reduce((sum, line) => sum + (line.receivedQuantity || 0), 0);
+    const totalOrdered = lines.reduce((sum, line) => sum + line.orderedQuantity, 0);
+
+    if (totalReceived === 0) return 'COMMANDE_INITIEE';
+    if (totalReceived === totalOrdered) return 'RECEPTIONNE';
+    if (totalReceived < totalOrdered) return 'PARTIELLEMENT_RECEPTIONNE';
+    return 'COMMANDE_INITIEE'; // Par défaut
   }
 }; 

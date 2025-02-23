@@ -11,10 +11,12 @@ function generateSKU(productName: string, unit: string, index: number): string {
   const prefix = productName.slice(0, 3).toUpperCase();
   // Prend la première lettre de l'unité en majuscules
   const unitPrefix = unit.slice(0, 1).toUpperCase();
+  // Ajoute un timestamp pour garantir l'unicité
+  const timestamp = Date.now().toString().slice(-6);
   // Ajoute un numéro séquentiel sur 3 chiffres
   const sequence = String(index + 1).padStart(3, '0');
   
-  return `${prefix}-${unitPrefix}${sequence}`;
+  return `${prefix}-${unitPrefix}${sequence}-${timestamp}`;
 }
 
 export const productService = {

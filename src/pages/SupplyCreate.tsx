@@ -16,7 +16,7 @@ interface ProductOption {
   value: string;
   label: string;
   isNew?: boolean;
-  product?: Product;
+  product?: Product | null;
 }
 
 interface PresentationOption {
@@ -80,13 +80,25 @@ export default function SupplyCreate() {
       
       // Si nous avons un index de ligne en attente, mettre à jour la ligne avec le nouveau produit
       if (newProductLineIndex !== null) {
+        const firstPresentation = newProduct.presentations[0]; // Récupérer la première présentation
         const newLines = [...lines];
+        
+        // Mettre à jour la ligne avec le nouveau produit et sa première présentation
         newLines[newProductLineIndex] = {
           ...newLines[newProductLineIndex],
           productId: newProduct.id!,
-          product: newProduct
+          product: newProduct,
+          presentationId: firstPresentation.id!,
+          presentation: firstPresentation,
+          purchasePrice: firstPresentation.purchasePrice || 0,
+          sellingPrice: firstPresentation.sellingPrice || 0,
+          orderedQuantity: 1 // Ajouter une quantité par défaut
         };
         setLines(newLines);
+
+        // Mettre à jour la liste des produits dans le cache
+        const updatedProducts = [...(products || []), newProduct];
+        queryClient.setQueryData(['products'], updatedProducts);
       }
       
       setIsNewProductModalOpen(false);
@@ -207,11 +219,23 @@ export default function SupplyCreate() {
 
   const handleCreateProduct = async (productData: Omit<Product, 'id'>) => {
     try {
-      console.log('handleCreateProduct called with data:', productData);
+      console.log('Initial productData:', JSON.stringify(productData, null, 2));
+      // Ajouter un SKU unique à chaque présentation
+      const presentationsWithSku = productData.presentations.map(presentation => {
+        // Ne pas générer de SKU ici car il sera généré par le service
+        return {
+          ...presentation,
+          // Supprimer le sku si présent
+          sku: undefined
+        };
+      });
+
+      console.log('Presentations without SKUs:', presentationsWithSku);
+
       await createProductMutation.mutateAsync({
         ...productData,
         description: productData.description || '',
-        presentations: productData.presentations
+        presentations: presentationsWithSku
       });
     } catch (error) {
       console.error('Error creating product:', error);
@@ -223,20 +247,25 @@ export default function SupplyCreate() {
     if (!line.product) return;
 
     try {
-      // Créer une nouvelle présentation pour le produit
+      // Créer une nouvelle présentation sans SKU
+      const newPresentation = {
+        unit,
+        purchasePrice: 0,
+        sellingPrice: 0,
+        stock: 0,
+        lowStockThreshold: 0
+      };
+
       const updatedProduct = await productService.update(line.product.id!, {
         ...line.product,
         presentations: [
           ...line.product.presentations,
-          {
-            unit,
-            purchasePrice: 0,
-            sellingPrice: 0,
-            stock: 0,
-            lowStockThreshold: 0
-          }
+          newPresentation
         ]
       });
+
+      // Récupérer la présentation nouvellement créée depuis le produit mis à jour
+      const createdPresentation = updatedProduct.presentations[updatedProduct.presentations.length - 1];
 
       // Mettre à jour la liste des produits
       const newProducts = products.map(p => 
@@ -245,14 +274,13 @@ export default function SupplyCreate() {
       queryClient.setQueryData(['products'], newProducts);
 
       // Mettre à jour la ligne avec la nouvelle présentation
-      const newPresentation = updatedProduct.presentations[updatedProduct.presentations.length - 1];
       const updatedLine = {
         ...line,
         product: updatedProduct,
-        presentationId: newPresentation.id!,
-        presentation: newPresentation,
-        purchasePrice: newPresentation.purchasePrice,
-        sellingPrice: newPresentation.sellingPrice
+        presentationId: createdPresentation.id!, // Utiliser l'ID de la présentation créée
+        presentation: createdPresentation,
+        purchasePrice: createdPresentation.purchasePrice,
+        sellingPrice: createdPresentation.sellingPrice
       };
 
       const newLines = [...lines];
@@ -261,6 +289,7 @@ export default function SupplyCreate() {
 
       toast.success('Présentation créée avec succès');
     } catch (error) {
+      console.error('Error creating presentation:', error);
       toast.error('Erreur lors de la création de la présentation');
     }
   };
@@ -343,6 +372,11 @@ export default function SupplyCreate() {
                           label: `${product.name} (${product.category})`,
                           product
                         }))}
+                        value={line.productId ? {
+                          value: line.productId,
+                          label: `${line.product?.name} (${line.product?.category})`,
+                          product: line.product
+                        } : null}
                         onChange={(option) => handleProductSelect(index, option)}
                         onCreateOption={(inputValue) => {
                           handleProductSelect(index, { value: '', label: inputValue, isNew: true });

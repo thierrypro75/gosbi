@@ -61,7 +61,18 @@ export default function Supplies() {
   // Filtrer les approvisionnements
   const filteredSupplies = supplies.filter((supply: Supply) => {
     const searchLower = searchTerm.toLowerCase();
+    
+    // Recherche dans la date
+    const date = supply.created_at 
+      ? format(new Date(supply.created_at), 'dd/MM/yyyy HH:mm', { locale: fr }).toLowerCase()
+      : '';
+
+    // Recherche dans le statut
+    const statusLabel = statusLabels[supply.status].label.toLowerCase();
+
     return (
+      date.includes(searchLower) ||
+      statusLabel.includes(searchLower) ||
       supply.description?.toLowerCase().includes(searchLower) ||
       supply.lines.some(line => 
         line.product?.name.toLowerCase().includes(searchLower) ||
@@ -153,7 +164,7 @@ export default function Supplies() {
                       {totalProducts}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                      {receivedQuantity} / {totalQuantity}
+                      {receivedQuantity || 0} / {totalQuantity || 0}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
@@ -211,7 +222,7 @@ export default function Supplies() {
 
               <div className="flex justify-between text-sm">
                 <span>Lignes: {totalProducts}</span>
-                <span>Reçus: {receivedQuantity} / {totalQuantity}</span>
+                <span>Reçus: {receivedQuantity || 0} / {totalQuantity || 0}</span>
               </div>
 
               <div className="flex justify-end space-x-2 pt-2">
@@ -244,4 +255,4 @@ export default function Supplies() {
       )}
     </div>
   );
-} 
+}
