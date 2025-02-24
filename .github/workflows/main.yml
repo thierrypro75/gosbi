@@ -11,10 +11,10 @@ jobs:
 
     steps:
       - name: Checkout du code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
 
       - name: Installer Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v4.2.0
         with:
           node-version: 18
           cache: 'npm'
@@ -26,7 +26,7 @@ jobs:
         run: npm run build
 
       - name: Déploiement sur le serveur FTP
-        uses: SamKirkland/FTP-Deploy-Action
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
