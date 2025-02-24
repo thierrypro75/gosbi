@@ -110,6 +110,14 @@ Un système de gestion moderne développé avec React et Supabase, offrant une i
 - Analyse des tendances
 - Export des données
 
+### Gestion des Approvisionnements
+- Création de bons de commande
+- Réception des marchandises
+- Suivi des commandes fournisseurs
+- Historique des approvisionnements
+- Gestion des fournisseurs
+- Import/Export des données d'approvisionnement
+
 ## 📁 Structure du Projet
 
 ```
@@ -119,6 +127,7 @@ gosbi/
 │   │   ├── common/         # Composants génériques
 │   │   ├── products/       # Composants liés aux produits
 │   │   ├── sales/          # Composants liés aux ventes
+│   │   ├── supplies/       # Composants liés aux approvisionnements
 │   │   └── stock/          # Composants de gestion des stocks
 │   ├── contexts/           # Contextes React
 │   │   └── AuthContext     # Gestion de l'authentification
@@ -130,6 +139,10 @@ gosbi/
 │   │   ├── Login.tsx       # Page de connexion
 │   │   ├── Products.tsx    # Gestion des produits
 │   │   ├── Sales.tsx       # Gestion des ventes
+│   │   ├── Supplies.tsx    # Liste des approvisionnements
+│   │   ├── Supply.tsx      # Détail d'un approvisionnement
+│   │   ├── SupplyCreate.tsx # Création d'approvisionnement
+│   │   ├── SupplyReceive.tsx # Réception de marchandises
 │   │   └── ResetPassword.tsx # Réinitialisation mot de passe
 │   ├── App.tsx             # Configuration des routes
 │   └── main.tsx           # Point d'entrée

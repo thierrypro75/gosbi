@@ -6,9 +6,10 @@
 3. [Interface Utilisateur](#interface-utilisateur)
 4. [Gestion des Produits](#gestion-des-produits)
 5. [Gestion des Ventes](#gestion-des-ventes)
-6. [Tableau de Bord](#tableau-de-bord)
-7. [Paramètres et Configuration](#paramètres-et-configuration)
-8. [Dépannage](#dépannage)
+6. [Gestion des Approvisionnements](#gestion-des-approvisionnements)
+7. [Tableau de Bord](#tableau-de-bord)
+8. [Paramètres et Configuration](#paramètres-et-configuration)
+9. [Dépannage](#dépannage)
 
 ## Introduction
 
@@ -23,6 +24,7 @@ GOSBI Management System est une application de gestion complète conçue pour si
 ### Fonctionnalités Principales
 - Gestion complète des produits et des stocks
 - Suivi des ventes en temps réel
+- Gestion des approvisionnements et des fournisseurs
 - Tableau de bord analytique
 - Génération de rapports
 
@@ -47,6 +49,7 @@ GOSBI Management System est une application de gestion complète conçue pour si
 - **Tableau de Bord** : Vue d'ensemble des performances
 - **Produits** : Gestion du catalogue et des stocks
 - **Ventes** : Suivi des transactions
+- **Approvisionnements** : Gestion des commandes fournisseurs
 - **Paramètres** : Configuration du compte
 
 ### Barre d'Outils Supérieure
@@ -116,6 +119,46 @@ GOSBI Management System est une application de gestion complète conçue pour si
    - Sélectionnez la période
    - Choisissez les métriques
    - Définissez le format
+
+## Gestion des Approvisionnements
+
+### Créer un Bon de Commande
+1. Accédez à la section "Approvisionnements"
+2. Cliquez sur "Nouveau Bon de Commande"
+3. Remplissez les informations :
+   - Sélectionnez le fournisseur
+   - Ajoutez les produits et quantités
+   - Définissez la date de livraison prévue
+   - Ajoutez des notes si nécessaire
+4. Cliquez sur "Créer la commande"
+
+### Réceptionner une Commande
+1. Dans la liste des approvisionnements, trouvez la commande à réceptionner
+2. Cliquez sur "Réceptionner"
+3. Pour chaque produit :
+   - Vérifiez la quantité reçue
+   - Notez les écarts éventuels
+   - Ajoutez des commentaires si nécessaire
+4. Validez la réception
+
+### Suivi des Commandes
+- Consultez l'état des commandes en cours
+- Filtrez par fournisseur ou statut
+- Accédez à l'historique complet
+- Exportez les données
+
+### Import/Export
+1. Pour importer des commandes :
+   - Cliquez sur "Importer"
+   - Utilisez le modèle CSV fourni
+   - Vérifiez les données
+   - Validez l'import
+
+2. Pour exporter :
+   - Sélectionnez la période
+   - Choisissez le format
+   - Filtrez les données si nécessaire
+   - Téléchargez le fichier
 
 ## Tableau de Bord
 
