@@ -28,7 +28,7 @@ export default function ResetPassword() {
       
       if (error) throw error;
       
-      toast.success('Instructions de réinitialisation envoyées par email');
+      toast.success('Un email de réinitialisation a été envoyé à ' + email + '. Veuillez vérifier votre boîte de réception et vos spams.');
       // Keep the loading state for a moment to prevent spam
       setTimeout(() => setLoading(false), 2000);
     } catch (error) {
