@@ -6,6 +6,9 @@ import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
 import Sales from './pages/Sales';
+import Supplies from './pages/Supplies';
+import SupplyCreate from './pages/SupplyCreate';
+import SupplyReceive from './pages/SupplyReceive';
 import Login from './pages/Login';
 import ResetPassword from './pages/ResetPassword';
 import { AuthProvider } from './contexts/AuthContext';
@@ -32,6 +35,9 @@ const router = createBrowserRouter([
       { path: '/dashboard', element: <Dashboard /> },
       { path: '/products', element: <Products /> },
       { path: '/sales', element: <Sales /> },
+      { path: '/supplies', element: <Supplies /> },
+      { path: '/supplies/new', element: <SupplyCreate /> },
+      { path: '/supplies/:id/receive', element: <SupplyReceive /> },
     ],
   },
   {
