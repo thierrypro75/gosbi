@@ -142,8 +142,12 @@ export default function Supplies() {
                 const status = statusLabels[supply.status];
                 const StatusIcon = status.icon;
                 const totalProducts = supply.lines.length;
-                const receivedQuantity = supply.lines.reduce((sum, line) => sum + (line.receivedQuantity || 0), 0);
-                const totalQuantity = supply.lines.reduce((sum, line) => sum + line.orderedQuantity, 0);
+                const receivedQuantity = supply.lines.reduce((sum, line: any) => 
+                  sum + (typeof line.received_quantity !== 'undefined' ? line.received_quantity : line.receivedQuantity || 0)
+                , 0);
+                const totalQuantity = supply.lines.reduce((sum, line: any) => 
+                  sum + (typeof line.ordered_quantity !== 'undefined' ? line.ordered_quantity : line.orderedQuantity || 0)
+                , 0);
                 const canDelete = supply.status === 'COMMANDE_INITIEE' || totalProducts === 0;
 
                 return (
@@ -200,8 +204,12 @@ export default function Supplies() {
           const status = statusLabels[supply.status];
           const StatusIcon = status.icon;
           const totalProducts = supply.lines.length;
-          const totalQuantity = supply.lines.reduce((sum, line) => sum + line.orderedQuantity, 0);
-          const receivedQuantity = supply.lines.reduce((sum, line) => sum + (line.receivedQuantity || 0), 0);
+          const receivedQuantity = supply.lines.reduce((sum, line: any) => 
+            sum + (typeof line.received_quantity !== 'undefined' ? line.received_quantity : line.receivedQuantity || 0)
+          , 0);
+          const totalQuantity = supply.lines.reduce((sum, line: any) => 
+            sum + (typeof line.ordered_quantity !== 'undefined' ? line.ordered_quantity : line.orderedQuantity || 0)
+          , 0);
           const canDelete = supply.status === 'COMMANDE_INITIEE' || totalProducts === 0;
 
           return (
