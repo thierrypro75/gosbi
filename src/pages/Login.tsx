@@ -21,11 +21,19 @@ export default function Login() {
       
       if (error) {
         if (error.message.includes('Invalid login credentials')) {
-          toast.error('Email ou mot de passe incorrect');
+          toast.error('Identifiants invalides. Vérifiez votre email et mot de passe.');
         } else if (error.message.includes('Email not confirmed')) {
-          toast.error('Veuillez confirmer votre email avant de vous connecter');
+          toast.error('Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte de réception.');
+        } else if (error.message.includes('Invalid email')) {
+          toast.error('Format d\'email invalide. Veuillez vérifier votre saisie.');
+        } else if (error.message.includes('rate limit')) {
+          toast.error('Trop de tentatives. Veuillez réessayer dans quelques minutes.');
+        } else if (error.status === 404 || error.message.includes('404')) {
+          toast.error('Le service d\'authentification est inaccessible. Veuillez réessayer plus tard.');
+        } else if (error.status === 400 || error.message.includes('400')) {
+          toast.error('Requête invalide. Veuillez vérifier vos informations.');
         } else {
-          toast.error('Une erreur est survenue lors de la connexion');
+          toast.error('Une erreur est survenue lors de la connexion. Veuillez réessayer.');
         }
         throw error;
       }
