@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
+import { toast, Toaster } from 'react-hot-toast';
 import { Package, Mail, Lock } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
@@ -35,12 +35,12 @@ export default function Login() {
         } else {
           toast.error('Une erreur est survenue lors de la connexion. Veuillez réessayer.');
         }
-        throw error;
+        return;
       }
       
       navigate('/', { replace: true });
     } catch (error) {
-      // L'erreur a déjà été gérée avec toast.error ci-dessus
+      toast.error('Une erreur inattendue est survenue. Veuillez réessayer.');
     } finally {
       setLoading(false);
     }
@@ -48,6 +48,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center p-4">
+      <Toaster position="top-right" />
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
         <div className="p-8">
           <div className="flex flex-col items-center mb-8">
