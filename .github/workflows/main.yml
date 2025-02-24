@@ -26,6 +26,9 @@ jobs:
       - name: Build du projet
         run: npm run build
 
+      - name: Copier .htaccess dans le dossier de build
+        run: cp public/.htaccess dist/
+
       - name: Déploiement sur le serveur FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -33,4 +36,4 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./dist/  # Répertoire de build
-          server-dir: /home/eshopbyv/domains/gosbi.eshopbyvalsue.mg/public_html/  # Répertoire distant
+          server-dir: /  # Répertoire distant
