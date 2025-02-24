@@ -41,7 +41,7 @@ export default function SupplyReceive() {
           ...line,
           ordered_quantity: line.ordered_quantity,
           receivedQuantity: line.received_quantity || 0,
-          newQuantity: 0,  // Initialiser à 0
+          newQuantity: line.ordered_quantity - (line.received_quantity || 0),  // Initialiser à la différence
           purchasePrice: line.purchase_price || 0,
           sellingPrice: line.selling_price || 0,
           status: line.status || 'EN_ATTENTE'
