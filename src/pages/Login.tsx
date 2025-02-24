@@ -19,11 +19,20 @@ export default function Login() {
         password
       });
       
-      if (error) throw error;
+      if (error) {
+        if (error.message.includes('Invalid login credentials')) {
+          toast.error('Email ou mot de passe incorrect');
+        } else if (error.message.includes('Email not confirmed')) {
+          toast.error('Veuillez confirmer votre email avant de vous connecter');
+        } else {
+          toast.error('Une erreur est survenue lors de la connexion');
+        }
+        throw error;
+      }
       
       navigate('/', { replace: true });
     } catch (error) {
-      toast.error('Échec de la connexion. Veuillez vérifier vos identifiants.');
+      // L'erreur a déjà été gérée avec toast.error ci-dessus
     } finally {
       setLoading(false);
     }
