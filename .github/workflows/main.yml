@@ -32,4 +32,4 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./dist/  # Répertoire de build
-          server-dir: /domains/gosbi.eshopbyvalsue.mg/public_html/  # Répertoire distant
+          server-dir: /home/eshopbyv/domains/gosbi.eshopbyvalsue.mg/public_html/  # Répertoire distant
