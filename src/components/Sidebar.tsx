@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Package, LayoutDashboard, ShoppingCart, X, LogOut, PackagePlus } from 'lucide-react';
+import { Package, LayoutDashboard, ShoppingCart, X, LogOut, PackagePlus, Users } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 import { ThemeToggle } from './ThemeToggle';
@@ -9,6 +9,7 @@ const navigation = [
   { name: 'Produits', href: '/products', icon: Package },
   { name: 'Ventes', href: '/sales', icon: ShoppingCart },
   { name: 'Approvisionnement', href: '/supplies', icon: PackagePlus },
+  { name: 'CRM', href: '/crm/clients', icon: Users },
 ];
 
 interface SidebarProps {

@@ -11,6 +11,9 @@ import SupplyReceive from './pages/SupplyReceive';
 import Login from './pages/Login';
 import ResetPassword from './pages/ResetPassword';
 import { AuthProvider } from './contexts/AuthContext';
+import CRMApp from './components/crm/CRMApp';
+import ClientList from './components/crm/ClientList';
+import ClientDetail from './components/crm/ClientDetail';
 
 const queryClient = new QueryClient();
 
@@ -37,6 +40,14 @@ const router = createBrowserRouter([
       { path: '/supplies', element: <Supplies /> },
       { path: '/supplies/new', element: <SupplyCreate /> },
       { path: '/supplies/:id/receive', element: <SupplyReceive /> },
+      {
+        path: '/crm',
+        element: <CRMApp />,
+        children: [
+          { path: 'clients', element: <ClientList /> },
+          { path: 'clients/:id', element: <ClientDetail /> },
+        ],
+      },
     ],
   },
   {
