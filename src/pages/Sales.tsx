@@ -6,6 +6,7 @@ import { productService } from '../lib/services/productService';
 import { toast } from 'react-hot-toast';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import Offcanvas from '../components/common/Offcanvas';
+import SaleForm from '../components/sales/SaleForm';
 import { DateRangePicker } from 'rsuite';
 import 'rsuite/dist/rsuite.min.css';
 
@@ -17,6 +18,12 @@ interface Product {
     unit: string;
     sellingPrice: number;
     stock: number;
+    sellingPrices: {
+      id: string;
+      label: string;
+      price: number;
+      isDefault: boolean;
+    }[];
   }[];
 }
 
@@ -25,6 +32,12 @@ interface Presentation {
   unit: string;
   sellingPrice: number;
   stock: number;
+  sellingPrices: {
+    id: string;
+    label: string;
+    price: number;
+    isDefault: boolean;
+  }[];
 }
 
 export default function Sales() {
@@ -41,13 +54,9 @@ export default function Sales() {
   };
 
   const [isOffcanvasOpen, setIsOffcanvasOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<string>('');
-  const [selectedPresentation, setSelectedPresentation] = useState<string>('');
-  const [quantity, setQuantity] = useState<number>(1);
   const [saleDate, setSaleDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [clientName, setClientName] = useState<string>('');
   const [description, setDescription] = useState<string>('');
-  const [sellingPrice, setSellingPrice] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [dateRange, setDateRange] = useState<[Date, Date]>(getCurrentMonthDates());
   const [currentPage, setCurrentPage] = useState(1);
@@ -80,21 +89,38 @@ export default function Sales() {
     }
   };
 
-  const createSale = async () => {
-    if (!selectedProduct || !selectedPresentation || quantity <= 0 || !clientName || !saleDate) return;
+  const createSale = async (formData: { presentationId: string; sellingPriceId: string; quantity: number }) => {
+    if (!formData.presentationId || !formData.sellingPriceId || formData.quantity <= 0 || !clientName || !saleDate) return;
 
     setLoading(true);
     try {
-      const product = products.find((p: Product) => p.id === selectedProduct);
-      const presentation = product?.presentations.find((p: Presentation) => p.id === selectedPresentation);
+      const presentation = products
+        .flatMap(p => p.presentations)
+        .find(p => p.id === formData.presentationId);
       
-      if (!product || !presentation) return;
+      const sellingPrice = presentation?.sellingPrices?.find(sp => sp.id === formData.sellingPriceId);
+
+      if (!presentation || !sellingPrice) {
+        toast.error('Présentation ou prix de vente non trouvé');
+        return;
+      }
+
+      // Trouver le produit parent de la présentation
+      const parentProduct = products.find(p =>
+        p.presentations.some(pres => pres.id === formData.presentationId)
+      );
+
+      if (!parentProduct) {
+        toast.error('Produit parent non trouvé');
+        return;
+      }
 
       const result = await saleService.createSale(
-        selectedProduct,
-        selectedPresentation,
-        quantity,
-        sellingPrice,
+        parentProduct.id,
+        formData.presentationId,
+        formData.sellingPriceId,
+        formData.quantity,
+        sellingPrice.price,
         saleDate,
         clientName,
         description
@@ -111,12 +137,8 @@ export default function Sales() {
       queryClient.invalidateQueries({ queryKey: ['products'] });
 
       // Réinitialiser le formulaire
-      setSelectedProduct('');
-      setSelectedPresentation('');
-      setQuantity(1);
       setClientName('');
       setDescription('');
-      setSellingPrice(0);
       setIsOffcanvasOpen(false);
       
       toast.success('Vente enregistrée avec succès');
@@ -128,9 +150,8 @@ export default function Sales() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await createSale();
+  const handleSubmit = async (formData: { presentationId: string; sellingPriceId: string; quantity: number }) => {
+    await createSale(formData);
   };
 
   const handleDelete = async (saleId: string) => {
@@ -153,7 +174,7 @@ export default function Sales() {
     }
   };
 
-  const selectedProductData = products.find(p => p.id === selectedProduct);
+
 
   return (
     <div className="space-y-6">
@@ -398,12 +419,8 @@ export default function Sales() {
         isOpen={isOffcanvasOpen}
         onClose={() => {
           setIsOffcanvasOpen(false);
-          setSelectedProduct('');
-          setSelectedPresentation('');
-          setQuantity(1);
           setClientName('');
           setDescription('');
-          setSellingPrice(0);
           setSaleDate(new Date().toISOString().split('T')[0]);
         }}
         title="Nouvelle vente"
@@ -413,12 +430,8 @@ export default function Sales() {
               type="button"
               onClick={() => {
                 setIsOffcanvasOpen(false);
-                setSelectedProduct('');
-                setSelectedPresentation('');
-                setQuantity(1);
                 setClientName('');
                 setDescription('');
-                setSellingPrice(0);
                 setSaleDate(new Date().toISOString().split('T')[0]);
               }}
               className="flex items-center justify-center w-10 h-10 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
@@ -443,50 +456,8 @@ export default function Sales() {
               type="button"
               onClick={async (e) => {
                 e.preventDefault();
-                if (!selectedProduct || !selectedPresentation || quantity <= 0 || !clientName || !saleDate) return;
-
-                setLoading(true);
-                try {
-                  const product = products.find((p: Product) => p.id === selectedProduct);
-                  const presentation = product?.presentations.find((p: Presentation) => p.id === selectedPresentation);
-                  
-                  if (!product || !presentation) return;
-
-                  const result = await saleService.createSale(
-                    selectedProduct,
-                    selectedPresentation,
-                    quantity,
-                    sellingPrice,
-                    saleDate,
-                    clientName,
-                    description
-                  );
-
-                  if (result.error) {
-                    console.error('Error creating sale:', result.error);
-                    toast.error('Erreur lors de l\'enregistrement de la vente');
-                    return;
-                  }
-
-                  // Recharger les ventes et les produits
-                  queryClient.invalidateQueries({ queryKey: ['sales'] });
-                  queryClient.invalidateQueries({ queryKey: ['products'] });
-
-                  // Réinitialiser le formulaire sauf la date
-                  setSelectedProduct('');
-                  setSelectedPresentation('');
-                  setQuantity(1);
-                  setClientName('');
-                  setDescription('');
-                  setSellingPrice(0);
-                  
-                  toast.success('Vente enregistrée avec succès');
-                } catch (error) {
-                  console.error('Error creating sale:', error);
-                  toast.error('Erreur lors de l\'enregistrement de la vente');
-                } finally {
-                  setLoading(false);
-                }
+                // Le formulaire sera soumis via le composant SaleForm
+                // Ce bouton est maintenant géré par le formulaire principal
               }}
               disabled={loading}
               className="flex items-center justify-center w-10 h-10 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
@@ -501,7 +472,7 @@ export default function Sales() {
           </div>
         }
       >
-        <form id="sale-form" onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">Date de l'opération</label>
@@ -526,93 +497,11 @@ export default function Sales() {
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Produit</label>
-            <select
-              value={selectedProduct}
-              onChange={(e) => {
-                setSelectedProduct(e.target.value);
-                setSelectedPresentation('');
-              }}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              required
-            >
-              <option value="">Sélectionner un produit</option>
-              {products.map((product) => (
-                <option key={product.id} value={product.id}>
-                  {product.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Présentation</label>
-            <select
-              value={selectedPresentation}
-              onChange={(e) => {
-                setSelectedPresentation(e.target.value);
-                const presentation = selectedProductData?.presentations.find(p => p.id === e.target.value);
-                if (presentation) {
-                  setSellingPrice(presentation.sellingPrice);
-                }
-              }}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              required
-              disabled={!selectedProduct}
-            >
-              <option value="">Sélectionner une présentation</option>
-              {selectedProductData?.presentations.map((presentation) => (
-                <option key={presentation.id} value={presentation.id}>
-                  {presentation.unit} - {formatPrice(presentation.sellingPrice)} 
-                  {presentation.stock <= 0 ? ' (Rupture de stock)' : ` (${presentation.stock} en stock)`}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Quantité</label>
-              <input
-                type="number"
-                min="1"
-                value={quantity}
-                onChange={(e) => setQuantity(parseInt(e.target.value))}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Prix de vente</label>
-              <div className="relative">
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={sellingPrice}
-                  onChange={(e) => setSellingPrice(parseFloat(e.target.value))}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  required
-                />
-                <span className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm text-gray-500">
-                  MGA
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {sellingPrice > 0 && quantity > 0 && (
-            <div className="rounded-md bg-gray-50 p-4">
-              <div className="text-sm text-gray-700">
-                <p>Prix unitaire : {formatPrice(sellingPrice)}</p>
-                <p className="font-medium mt-2">
-                  Total : {formatPrice(sellingPrice * quantity)}
-                </p>
-              </div>
-            </div>
-          )}
+          <SaleForm
+            id="sale-form"
+            products={products}
+            onSubmit={handleSubmit}
+          />
 
           <div>
             <label className="block text-sm font-medium text-gray-700">Description</label>
@@ -624,7 +513,7 @@ export default function Sales() {
               placeholder="Description de la vente (optionnel)"
             />
           </div>
-        </form>
+        </div>
       </Offcanvas>
     </div>
   );

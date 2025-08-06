@@ -2,6 +2,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Product, productSchema } from '../../lib/schemas/product';
 import { Plus, Trash2 } from 'lucide-react';
+import SellingPricesForm from './SellingPricesForm';
 
 interface ProductFormProps {
   id?: string;
@@ -14,6 +15,8 @@ export default function ProductForm({ id = 'product-form', initialData, onSubmit
     register,
     control,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<Product>({
     resolver: zodResolver(productSchema),
@@ -24,7 +27,12 @@ export default function ProductForm({ id = 'product-form', initialData, onSubmit
         purchasePrice: 0,
         sellingPrice: 0,
         stock: 0,
-        lowStockThreshold: 5
+        lowStockThreshold: 5,
+        sellingPrices: [{
+          label: 'Prix public',
+          price: 0,
+          isDefault: true
+        }]
       }],
     },
   });
@@ -114,7 +122,12 @@ export default function ProductForm({ id = 'product-form', initialData, onSubmit
                 purchasePrice: 0,
                 sellingPrice: 0,
                 stock: 0,
-                lowStockThreshold: 5
+                lowStockThreshold: 5,
+                sellingPrices: [{
+                  label: 'Prix public',
+                  price: 0,
+                  isDefault: true
+                }]
               })}
               className="flex items-center text-sm text-blue-600 hover:text-blue-700"
             >
@@ -165,18 +178,25 @@ export default function ProductForm({ id = 'product-form', initialData, onSubmit
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Prix de vente</label>
+                  <label className="block text-sm font-medium text-gray-700">Prix de vente (hérité)</label>
                   <input
                     type="number"
                     step="0.01"
                     {...register(`presentations.${index}.sellingPrice`, { valueAsNumber: true })}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    disabled
                   />
-                  {errors.presentations?.[index]?.sellingPrice && (
-                    <p className="mt-1 text-sm text-red-600">{errors.presentations[index].sellingPrice.message}</p>
-                  )}
+                  <p className="mt-1 text-xs text-gray-500">Ce champ est maintenu pour la compatibilité</p>
                 </div>
               </div>
+
+              <SellingPricesForm
+                presentationIndex={index}
+                control={control}
+                register={register}
+                watch={watch}
+                setValue={setValue}
+              />
 
               <div className="grid grid-cols-2 gap-4">
                 <div>

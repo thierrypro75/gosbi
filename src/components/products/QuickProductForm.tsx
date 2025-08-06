@@ -3,6 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, Trash2 } from 'lucide-react';
 import { useImperativeHandle, forwardRef } from 'react';
 import { z } from 'zod';
+import SellingPricesForm from './SellingPricesForm';
 
 const quickProductSchema = z.object({
   name: z.string().min(1, "Le nom est requis"),
@@ -13,7 +14,12 @@ const quickProductSchema = z.object({
     purchasePrice: z.number().default(0),
     sellingPrice: z.number().default(0),
     stock: z.number().default(0),
-    lowStockThreshold: z.number().default(5)
+    lowStockThreshold: z.number().default(5),
+    sellingPrices: z.array(z.object({
+      label: z.string().min(1, 'Le libellé est requis'),
+      price: z.number().positive('Le prix doit être positif'),
+      isDefault: z.boolean().default(false),
+    })).optional()
   })).min(1, "Au moins une présentation est requise")
 });
 
@@ -34,6 +40,8 @@ const QuickProductForm = forwardRef<QuickProductFormRef, QuickProductFormProps>(
     register,
     handleSubmit,
     control,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<QuickProduct>({
     resolver: zodResolver(quickProductSchema),
@@ -44,7 +52,12 @@ const QuickProductForm = forwardRef<QuickProductFormRef, QuickProductFormProps>(
         purchasePrice: 0,
         sellingPrice: 0,
         stock: 0,
-        lowStockThreshold: 5
+        lowStockThreshold: 5,
+        sellingPrices: [{
+          label: 'Prix public',
+          price: 0,
+          isDefault: true
+        }]
       }],
     },
   });
@@ -117,7 +130,18 @@ const QuickProductForm = forwardRef<QuickProductFormRef, QuickProductFormProps>(
           </label>
           <button
             type="button"
-            onClick={() => append({ unit: '', purchasePrice: 0, sellingPrice: 0, stock: 0, lowStockThreshold: 5 })}
+            onClick={() => append({
+              unit: '',
+              purchasePrice: 0,
+              sellingPrice: 0,
+              stock: 0,
+              lowStockThreshold: 5,
+              sellingPrices: [{
+                label: 'Prix public',
+                price: 0,
+                isDefault: true
+              }]
+            })}
             className="flex items-center text-sm text-blue-600 hover:text-blue-700"
           >
             <Plus className="h-4 w-4 mr-1" />
@@ -126,27 +150,40 @@ const QuickProductForm = forwardRef<QuickProductFormRef, QuickProductFormProps>(
         </div>
 
         {fields.map((field, index) => (
-          <div key={field.id} className="flex items-center space-x-4">
-            <div className="flex-1">
+          <div key={field.id} className="border rounded-lg p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium text-gray-700">Présentation {index + 1}</h4>
+              {fields.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => remove(index)}
+                  className="text-red-600 hover:text-red-700"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Unité</label>
               <input
                 type="text"
                 placeholder="Unité (ex: 250ml, 1kg, etc.)"
                 {...register(`presentations.${index}.unit`)}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />
               {errors.presentations?.[index]?.unit && (
                 <p className="mt-1 text-sm text-red-600">{errors.presentations[index].unit.message}</p>
               )}
             </div>
-            {fields.length > 1 && (
-              <button
-                type="button"
-                onClick={() => remove(index)}
-                className="text-red-600 hover:text-red-700"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            )}
+
+            <SellingPricesForm
+              presentationIndex={index}
+              control={control}
+              register={register}
+              watch={watch}
+              setValue={setValue}
+            />
           </div>
         ))}
       </div>

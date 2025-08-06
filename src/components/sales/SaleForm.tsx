@@ -5,6 +5,7 @@ import { Product, Presentation } from '../../lib/schemas/product';
 
 const saleSchema = z.object({
   presentationId: z.string().min(1, "La présentation est requise"),
+  sellingPriceId: z.string().min(1, "Le prix de vente est requis"),
   quantity: z.number().min(1, "La quantité doit être supérieure à 0"),
 });
 
@@ -39,9 +40,11 @@ export default function SaleForm({ id = 'sale-form', products, onSubmit }: SaleF
   });
 
   const selectedPresentationId = watch('presentationId');
+  const selectedSellingPriceId = watch('sellingPriceId');
   const selectedPresentation = products
     .flatMap(p => p.presentations)
     .find(p => p.id === selectedPresentationId);
+  const selectedSellingPrice = selectedPresentation?.sellingPrices?.find(sp => sp.id === selectedSellingPriceId);
 
   const onSubmitForm = async (data: SaleFormData) => {
     try {
@@ -71,7 +74,7 @@ export default function SaleForm({ id = 'sale-form', products, onSubmit }: SaleF
                   value={presentation.id}
                   disabled={presentation.stock <= 0}
                 >
-                  {presentation.unit} - {formatPrice(presentation.sellingPrice)} 
+                  {presentation.unit} - {presentation.sellingPrices?.length || 0} prix disponibles
                   {presentation.stock <= 0 ? ' (Rupture de stock)' : ` (${presentation.stock} en stock)`}
                 </option>
               ))}
@@ -82,6 +85,39 @@ export default function SaleForm({ id = 'sale-form', products, onSubmit }: SaleF
           <p className="mt-1 text-sm text-red-600">{errors.presentationId.message}</p>
         )}
       </div>
+
+      {selectedPresentation && (
+        <div>
+          <label htmlFor="sellingPriceId" className="block text-sm font-medium text-gray-700">
+            Prix de vente
+          </label>
+          <select
+            id="sellingPriceId"
+            {...register('sellingPriceId')}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          >
+            <option value="">Sélectionner un prix</option>
+            {selectedPresentation.sellingPrices && selectedPresentation.sellingPrices.length > 0 ? (
+              selectedPresentation.sellingPrices.map((sellingPrice) => (
+                <option
+                  key={sellingPrice.id}
+                  value={sellingPrice.id}
+                >
+                  {sellingPrice.label} - {formatPrice(sellingPrice.price)}
+                  {sellingPrice.isDefault && ' (Par défaut)'}
+                </option>
+              ))
+            ) : (
+              <option value="default" disabled>
+                Aucun prix de vente défini
+              </option>
+            )}
+          </select>
+          {errors.sellingPriceId && (
+            <p className="mt-1 text-sm text-red-600">{errors.sellingPriceId.message}</p>
+          )}
+        </div>
+      )}
 
       <div>
         <label htmlFor="quantity" className="block text-sm font-medium text-gray-700">
@@ -100,12 +136,12 @@ export default function SaleForm({ id = 'sale-form', products, onSubmit }: SaleF
         )}
       </div>
 
-      {selectedPresentation && (
+      {selectedSellingPrice && (
         <div className="rounded-md bg-gray-50 p-4">
           <div className="text-sm text-gray-700">
-            <p>Prix unitaire : {formatPrice(selectedPresentation.sellingPrice)}</p>
+            <p>Prix unitaire : {formatPrice(selectedSellingPrice.price)}</p>
             <p className="font-medium mt-2">
-              Total : {formatPrice(selectedPresentation.sellingPrice * (watch('quantity') || 0))}
+              Total : {formatPrice(selectedSellingPrice.price * (watch('quantity') || 0))}
             </p>
           </div>
         </div>

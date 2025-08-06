@@ -5,6 +5,7 @@ export interface Sale {
   id: string;
   product_id: string;
   presentation_id: string;
+  selling_price_id?: string;
   quantity: number;
   unit_price: number;
   total_amount: number;
@@ -19,12 +20,17 @@ export interface Sale {
   presentation?: {
     unit: string;
   };
+  selling_price?: {
+    label: string;
+    price: number;
+  };
 }
 
 export const saleService = {
   async createSale(
     productId: string,
     presentationId: string,
+    sellingPriceId: string,
     quantity: number,
     unitPrice: number,
     saleDate: string,
@@ -57,6 +63,7 @@ export const saleService = {
         .insert({
           product_id: productId,
           presentation_id: presentationId,
+          selling_price_id: sellingPriceId,
           quantity,
           unit_price: unitPrice,
           total_amount: totalAmount,
@@ -111,7 +118,8 @@ export const saleService = {
         .select(`
           *,
           product:products!product_id(name),
-          presentation:presentations!presentation_id(unit)
+          presentation:presentations!presentation_id(unit),
+          selling_price:selling_prices!selling_price_id(label, price)
         `)
         .eq('status', status)
         .order('sale_date', { ascending: false });

@@ -1,6 +1,7 @@
 import { supabase } from '../supabaseClient';
-import { Product, ProductUpdate, Presentation } from '../schemas/product';
+import { Product, ProductUpdate, Presentation, SellingPrice } from '../schemas/product';
 import { stockMovementService } from './stockMovementService';
+import { sellingPriceService } from './sellingPriceService';
 import toast from 'react-hot-toast';
 
 const PRODUCTS_TABLE = 'products';
@@ -45,20 +46,40 @@ export const productService = {
           throw presentationsError;
         }
 
-        // Convertir les présentations en format camelCase
-        const formattedPresentations = (presentations || []).map(p => ({
-          id: p.id,
-          unit: p.unit,
-          purchasePrice: p.purchase_price,
-          sellingPrice: p.selling_price,
-          stock: p.stock,
-          lowStockThreshold: p.low_stock_threshold,
-          sku: p.sku
-        }));
+        // Récupérer les prix de vente pour chaque présentation
+        const presentationsWithPrices = await Promise.all(
+          (presentations || []).map(async (p) => {
+            try {
+              const sellingPrices = await sellingPriceService.getByPresentation(p.id);
+              return {
+                id: p.id,
+                unit: p.unit,
+                purchasePrice: p.purchase_price,
+                sellingPrice: p.selling_price, // Keep for backward compatibility
+                sellingPrices: sellingPrices,
+                stock: p.stock,
+                lowStockThreshold: p.low_stock_threshold,
+                sku: p.sku
+              };
+            } catch (error) {
+              // Si pas de prix de vente multiples, utiliser le prix de vente standard
+              return {
+                id: p.id,
+                unit: p.unit,
+                purchasePrice: p.purchase_price,
+                sellingPrice: p.selling_price,
+                sellingPrices: [],
+                stock: p.stock,
+                lowStockThreshold: p.low_stock_threshold,
+                sku: p.sku
+              };
+            }
+          })
+        );
 
         return {
           ...product,
-          presentations: formattedPresentations
+          presentations: presentationsWithPrices
         };
       })
     );
@@ -89,20 +110,40 @@ export const productService = {
       throw presentationsError;
     }
 
-    // Convertir les présentations en format camelCase
-    const formattedPresentations = (presentations || []).map(p => ({
-      id: p.id,
-      unit: p.unit,
-      purchasePrice: p.purchase_price,
-      sellingPrice: p.selling_price,
-      stock: p.stock,
-      lowStockThreshold: p.low_stock_threshold,
-      sku: p.sku
-    }));
+    // Récupérer les prix de vente pour chaque présentation
+    const presentationsWithPrices = await Promise.all(
+      (presentations || []).map(async (p) => {
+        try {
+          const sellingPrices = await sellingPriceService.getByPresentation(p.id);
+          return {
+            id: p.id,
+            unit: p.unit,
+            purchasePrice: p.purchase_price,
+            sellingPrice: p.selling_price, // Keep for backward compatibility
+            sellingPrices: sellingPrices,
+            stock: p.stock,
+            lowStockThreshold: p.low_stock_threshold,
+            sku: p.sku
+          };
+        } catch (error) {
+          // Si pas de prix de vente multiples, utiliser le prix de vente standard
+          return {
+            id: p.id,
+            unit: p.unit,
+            purchasePrice: p.purchase_price,
+            sellingPrice: p.selling_price,
+            sellingPrices: [],
+            stock: p.stock,
+            lowStockThreshold: p.low_stock_threshold,
+            sku: p.sku
+          };
+        }
+      })
+    );
 
     return {
       ...product,
-      presentations: formattedPresentations
+      presentations: presentationsWithPrices
     };
   },
 
@@ -179,22 +220,57 @@ export const productService = {
       toast.error('Erreur lors de la création des mouvements de stock');
     }
 
-    // Convertir les présentations en format camelCase pour le frontend
-    const formattedPresentations = presentations.map(p => ({
-      id: p.id,
-      unit: p.unit,
-      purchasePrice: p.purchase_price,
-      sellingPrice: p.selling_price,
-      stock: p.stock,
-      lowStockThreshold: p.low_stock_threshold,
-      sku: p.sku
-    }));
+    // Créer les prix de vente multiples pour chaque présentation
+    const presentationsWithPrices = await Promise.all(
+      presentations.map(async (p, index) => {
+        const presentation = product.presentations[index];
+        const sellingPrices = presentation.sellingPrices || [];
 
-    console.log('Presentations created:', formattedPresentations);
+        // Créer les prix de vente multiples (séquentiellement pour éviter les conflits)
+        const createdSellingPrices = [];
+
+        // Séparer les prix par défaut et non-par défaut
+        const nonDefaultPrices = sellingPrices.filter(sp => !sp.isDefault);
+        const defaultPrices = sellingPrices.filter(sp => sp.isDefault);
+
+        // Créer d'abord les prix non-par défaut
+        for (const sp of nonDefaultPrices) {
+          const createdPrice = await sellingPriceService.create(p.id, {
+            label: sp.label,
+            price: sp.price,
+            isDefault: sp.isDefault
+          });
+          createdSellingPrices.push(createdPrice);
+        }
+
+        // Ensuite créer les prix par défaut (un seul à la fois)
+        for (const sp of defaultPrices) {
+          const createdPrice = await sellingPriceService.create(p.id, {
+            label: sp.label,
+            price: sp.price,
+            isDefault: sp.isDefault
+          });
+          createdSellingPrices.push(createdPrice);
+        }
+
+        return {
+          id: p.id,
+          unit: p.unit,
+          purchasePrice: p.purchase_price,
+          sellingPrice: p.selling_price, // Keep for backward compatibility
+          sellingPrices: createdSellingPrices,
+          stock: p.stock,
+          lowStockThreshold: p.low_stock_threshold,
+          sku: p.sku
+        };
+      })
+    );
+
+    console.log('Presentations created with prices:', presentationsWithPrices);
     toast.success('Produit créé avec succès');
     return {
       ...newProduct,
-      presentations: formattedPresentations
+      presentations: presentationsWithPrices
     };
   },
 
@@ -307,13 +383,193 @@ export const productService = {
 
       // Créer les nouvelles présentations
       if (presentationsToCreate.length > 0) {
-        const { error: createError } = await supabase
+        const { data: createdPresentations, error: createError } = await supabase
           .from(PRESENTATIONS_TABLE)
-          .insert(presentationsToCreate);
+          .insert(presentationsToCreate)
+          .select();
 
         if (createError) {
           toast.error('Erreur lors de la création des présentations');
           throw createError;
+        }
+
+        // Créer les prix de vente multiples pour les nouvelles présentations
+        for (let i = 0; i < createdPresentations.length; i++) {
+          const createdPresentation = createdPresentations[i];
+          const presentationData = product.presentations.find(p =>
+            p.unit === createdPresentation.unit &&
+            p.purchasePrice === createdPresentation.purchase_price
+          );
+
+          if (presentationData?.sellingPrices) {
+            // Séparer les prix par défaut et non-par défaut
+            const nonDefaultPrices = presentationData.sellingPrices.filter(sp => !sp.isDefault);
+            const defaultPrices = presentationData.sellingPrices.filter(sp => sp.isDefault);
+
+            // Créer d'abord les prix non-par défaut
+            for (const sellingPrice of nonDefaultPrices) {
+              await sellingPriceService.create(createdPresentation.id, {
+                label: sellingPrice.label,
+                price: sellingPrice.price,
+                isDefault: sellingPrice.isDefault
+              });
+            }
+
+            // Ensuite créer les prix par défaut (un seul à la fois)
+            for (const sellingPrice of defaultPrices) {
+              await sellingPriceService.create(createdPresentation.id, {
+                label: sellingPrice.label,
+                price: sellingPrice.price,
+                isDefault: sellingPrice.isDefault
+              });
+            }
+          }
+        }
+      }
+
+      // Mettre à jour les prix de vente multiples pour chaque présentation
+      for (const [index, presentation] of product.presentations.entries()) {
+        if (presentation.id && currentPresentationsMap.has(presentation.id)) {
+          // Mise à jour des prix de vente pour une présentation existante
+          const sellingPrices = presentation.sellingPrices || [];
+
+          // Récupérer les prix existants
+          const existingPrices = await sellingPriceService.getByPresentation(presentation.id);
+          const existingPricesMap = new Map(existingPrices.map(p => [p.id, p]));
+
+          // Identifier les prix à créer, mettre à jour ou supprimer
+          const pricesToCreate = [];
+          const pricesToUpdate = [];
+          const priceIdsToKeep = new Set();
+
+          // Vérifier s'il y a plusieurs prix par défaut dans les données du formulaire
+          const defaultPricesInForm = sellingPrices.filter(sp => sp.isDefault);
+          if (defaultPricesInForm.length > 1) {
+            console.warn('Multiple default prices detected in form data, keeping only the first one');
+            // Garder seulement le premier prix par défaut
+            for (let i = 0; i < sellingPrices.length; i++) {
+              if (sellingPrices[i].isDefault) {
+                // Trouver le premier prix par défaut
+                if (i === sellingPrices.findIndex(sp => sp.isDefault)) {
+                  // C'est le premier, le garder comme par défaut
+                  continue;
+                } else {
+                  // Ce n'est pas le premier, le marquer comme non-par défaut
+                  sellingPrices[i].isDefault = false;
+                }
+              }
+            }
+          } else if (defaultPricesInForm.length === 0) {
+            // S'il n'y a aucun prix par défaut, marquer le premier comme par défaut
+            console.warn('No default price detected in form data, setting first price as default');
+            if (sellingPrices.length > 0) {
+              sellingPrices[0].isDefault = true;
+            }
+          }
+
+          for (const sellingPrice of sellingPrices) {
+            if (sellingPrice.id && existingPricesMap.has(sellingPrice.id)) {
+              // Mise à jour d'un prix existant
+              pricesToUpdate.push({
+                id: sellingPrice.id,
+                label: sellingPrice.label,
+                price: sellingPrice.price,
+                isDefault: sellingPrice.isDefault
+              });
+              priceIdsToKeep.add(sellingPrice.id);
+            } else {
+              // Nouveau prix
+              pricesToCreate.push({
+                presentationId: presentation.id,
+                label: sellingPrice.label,
+                price: sellingPrice.price,
+                isDefault: sellingPrice.isDefault
+              });
+            }
+          }
+
+          // Supprimer les prix qui ne sont plus présents
+          const pricesToDelete = existingPrices
+            .filter(p => !priceIdsToKeep.has(p.id))
+            .map(p => p.id);
+
+          for (const priceId of pricesToDelete) {
+            await sellingPriceService.delete(priceId);
+          }
+
+          // S'assurer qu'il n'y a qu'un seul prix par défaut
+          const defaultPricesToCreate = pricesToCreate.filter(p => p.isDefault);
+          const nonDefaultPricesToCreate = pricesToCreate.filter(p => !p.isDefault);
+
+          // Si plusieurs prix sont marqués comme par défaut, ne garder que le premier
+          if (defaultPricesToCreate.length > 1) {
+            console.warn('Multiple default prices detected, keeping only the first one');
+            const firstDefault = defaultPricesToCreate[0];
+            const othersAsNonDefault = defaultPricesToCreate.slice(1).map(p => ({ ...p, isDefault: false }));
+
+            // Ajouter les autres comme non-par défaut
+            nonDefaultPricesToCreate.push(...othersAsNonDefault);
+
+            // Ne garder que le premier comme par défaut
+            defaultPricesToCreate.splice(1);
+          }
+
+          // Créer d'abord les prix non-par défaut
+          console.log('🔄 Creating non-default prices:', nonDefaultPricesToCreate);
+          for (const priceData of nonDefaultPricesToCreate) {
+            console.log('📤 Creating non-default price:', priceData);
+            await sellingPriceService.create(priceData.presentationId, {
+              label: priceData.label,
+              price: priceData.price,
+              isDefault: priceData.isDefault
+            });
+          }
+
+          // Ensuite créer les prix par défaut (un seul à la fois)
+          console.log('🔄 Creating default prices:', defaultPricesToCreate);
+          for (const priceData of defaultPricesToCreate) {
+            console.log('📤 Creating default price:', priceData);
+            await sellingPriceService.create(priceData.presentationId, {
+              label: priceData.label,
+              price: priceData.price,
+              isDefault: priceData.isDefault
+            });
+          }
+
+          // S'assurer qu'il n'y a qu'un seul prix par défaut parmi les prix existants
+          const defaultPrices = pricesToUpdate.filter(p => p.isDefault);
+          const nonDefaultPrices = pricesToUpdate.filter(p => !p.isDefault);
+
+          // Si plusieurs prix existants sont marqués comme par défaut, ne garder que le premier
+          if (defaultPrices.length > 1) {
+            console.warn('Multiple default prices detected in existing prices, keeping only the first one');
+            const firstDefault = defaultPrices[0];
+            const othersAsNonDefault = defaultPrices.slice(1).map(p => ({ ...p, isDefault: false }));
+
+            // Ajouter les autres comme non-par défaut
+            nonDefaultPrices.push(...othersAsNonDefault);
+
+            // Ne garder que le premier comme par défaut
+            defaultPrices.splice(1);
+          }
+
+          // Mettre à jour d'abord les prix non-par défaut
+          for (const priceData of nonDefaultPrices) {
+            await sellingPriceService.update(priceData.id, {
+              label: priceData.label,
+              price: priceData.price,
+              isDefault: priceData.isDefault
+            });
+          }
+
+          // Ensuite mettre à jour les prix par défaut (un seul à la fois)
+          for (const priceData of defaultPrices) {
+            await sellingPriceService.update(priceData.id, {
+              label: priceData.label,
+              price: priceData.price,
+              isDefault: priceData.isDefault
+            });
+          }
         }
       }
     }
