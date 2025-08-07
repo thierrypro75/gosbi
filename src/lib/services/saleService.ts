@@ -11,6 +11,7 @@ export interface Sale {
   total_amount: number;
   sale_date: string;
   created_by: string;
+  client_id?: string;
   client_name: string;
   description: string;
   status: 'ACTIVE' | 'CANCELLED';
@@ -24,6 +25,13 @@ export interface Sale {
     label: string;
     price: number;
   };
+  client?: {
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    company?: string;
+  };
 }
 
 export const saleService = {
@@ -34,6 +42,7 @@ export const saleService = {
     quantity: number,
     unitPrice: number,
     saleDate: string,
+    clientId: string | null,
     clientName: string,
     description: string,
   ): Promise<{ data: Sale | null; error: Error | null }> {
@@ -68,6 +77,7 @@ export const saleService = {
           unit_price: unitPrice,
           total_amount: totalAmount,
           sale_date: formattedDate,
+          client_id: clientId,
           client_name: clientName,
           description,
           created_by: (await supabase.auth.getUser()).data.user?.id,
@@ -119,7 +129,8 @@ export const saleService = {
           *,
           product:products!product_id(name),
           presentation:presentations!presentation_id(unit),
-          selling_price:selling_prices!selling_price_id(label, price)
+          selling_price:selling_prices!selling_price_id(label, price),
+          client:clients!client_id(id, name, email, phone, company)
         `)
         .eq('status', status)
         .order('sale_date', { ascending: false });
@@ -142,6 +153,33 @@ export const saleService = {
       return { data, error: null };
     } catch (error) {
       console.error('Error fetching sales:', error);
+      return { data: null, error: error as Error };
+    }
+  },
+
+  async getSalesByClient(
+    clientId: string,
+    status: 'ACTIVE' | 'CANCELLED' = 'ACTIVE'
+  ): Promise<{ data: Sale[] | null; error: Error | null }> {
+    try {
+      const { data, error } = await supabase
+        .from('sales')
+        .select(`
+          *,
+          product:products!product_id(name),
+          presentation:presentations!presentation_id(unit),
+          selling_price:selling_prices!selling_price_id(label, price),
+          client:clients!client_id(id, name, email, phone, company)
+        `)
+        .eq('client_id', clientId)
+        .eq('status', status)
+        .order('sale_date', { ascending: false });
+
+      if (error) throw error;
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error fetching client sales:', error);
       return { data: null, error: error as Error };
     }
   },

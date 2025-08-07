@@ -5,6 +5,7 @@ import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
 import Sales from './pages/Sales';
+import Clients from './pages/Clients';
 import Supplies from './pages/Supplies';
 import SupplyCreate from './pages/SupplyCreate';
 import SupplyReceive from './pages/SupplyReceive';
@@ -34,6 +35,7 @@ const router = createBrowserRouter([
       { path: '/dashboard', element: <Dashboard /> },
       { path: '/products', element: <Products /> },
       { path: '/sales', element: <Sales /> },
+      { path: '/clients', element: <Clients /> },
       { path: '/supplies', element: <Supplies /> },
       { path: '/supplies/new', element: <SupplyCreate /> },
       { path: '/supplies/:id/receive', element: <SupplyReceive /> },

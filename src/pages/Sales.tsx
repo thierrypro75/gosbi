@@ -3,10 +3,12 @@ import { ShoppingCart, Plus, Trash2, ChevronLeft, ChevronRight, X, Save, SaveAll
 import { formatPrice } from '../lib/utils';
 import { saleService, Sale } from '../lib/services/saleService';
 import { productService } from '../lib/services/productService';
+import { clientService, Client } from '../lib/services/clientService';
 import { toast } from 'react-hot-toast';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import Offcanvas from '../components/common/Offcanvas';
 import SaleForm from '../components/sales/SaleForm';
+import ClientSelector from '../components/sales/ClientSelector';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { DateRangePicker } from 'rsuite';
 import 'rsuite/dist/rsuite.min.css';
@@ -27,7 +29,7 @@ export default function Sales() {
 
   const [isOffcanvasOpen, setIsOffcanvasOpen] = useState(false);
   const [saleDate, setSaleDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [clientName, setClientName] = useState<string>('');
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [description, setDescription] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [dateRange, setDateRange] = useState<[Date, Date]>(getCurrentMonthDates());
@@ -63,7 +65,7 @@ export default function Sales() {
   };
 
   const createSale = async (formData: { presentationId: string; sellingPriceId: string; quantity: number }) => {
-    if (!formData.presentationId || !formData.sellingPriceId || formData.quantity <= 0 || !clientName || !saleDate) return;
+    if (!formData.presentationId || !formData.sellingPriceId || formData.quantity <= 0 || !selectedClient || !saleDate) return;
 
     setLoading(true);
     try {
@@ -100,7 +102,8 @@ export default function Sales() {
         formData.quantity,
         sellingPrice.price,
         saleDate,
-        clientName,
+        selectedClient?.id || null,
+        selectedClient?.name || '',
         description
       );
 
@@ -115,7 +118,7 @@ export default function Sales() {
       queryClient.invalidateQueries({ queryKey: ['products'] });
 
       // Réinitialiser le formulaire
-      setClientName('');
+      setSelectedClient(null);
       setDescription('');
       setIsOffcanvasOpen(false);
       
@@ -397,7 +400,7 @@ export default function Sales() {
         isOpen={isOffcanvasOpen}
         onClose={() => {
           setIsOffcanvasOpen(false);
-          setClientName('');
+          setSelectedClient(null);
           setDescription('');
           setSaleDate(new Date().toISOString().split('T')[0]);
         }}
@@ -423,7 +426,7 @@ export default function Sales() {
                 type="button"
                 onClick={() => {
                   setIsOffcanvasOpen(false);
-                  setClientName('');
+                  setSelectedClient(null);
                   setDescription('');
                   setSaleDate(new Date().toISOString().split('T')[0]);
                   setSaleTotal(0);
@@ -469,14 +472,12 @@ export default function Sales() {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Nom du client</label>
-            <input
-              type="text"
-              value={clientName}
-              onChange={(e) => setClientName(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              required
-              placeholder="Nom du client"
+            <label className="block text-sm font-medium text-gray-700">Client</label>
+            <ClientSelector
+              selectedClient={selectedClient}
+              onClientSelect={setSelectedClient}
+              placeholder="Rechercher ou créer un client..."
+              className="mt-1"
             />
           </div>
 
