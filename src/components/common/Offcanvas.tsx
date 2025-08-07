@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 interface OffcanvasProps {
   isOpen: boolean;
   onClose: () => void;
-  title: string;
+  title: React.ReactNode;
   children: React.ReactNode;
   footer?: React.ReactNode;
 }

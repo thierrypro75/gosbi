@@ -9,36 +9,7 @@ import Offcanvas from '../components/common/Offcanvas';
 import SaleForm from '../components/sales/SaleForm';
 import { DateRangePicker } from 'rsuite';
 import 'rsuite/dist/rsuite.min.css';
-
-interface Product {
-  id: string;
-  name: string;
-  presentations: {
-    id: string;
-    unit: string;
-    sellingPrice: number;
-    stock: number;
-    sellingPrices: {
-      id: string;
-      label: string;
-      price: number;
-      isDefault: boolean;
-    }[];
-  }[];
-}
-
-interface Presentation {
-  id: string;
-  unit: string;
-  sellingPrice: number;
-  stock: number;
-  sellingPrices: {
-    id: string;
-    label: string;
-    price: number;
-    isDefault: boolean;
-  }[];
-}
+import { Product } from '../lib/schemas/product';
 
 export default function Sales() {
   // Get current month's start and end dates
@@ -61,6 +32,7 @@ export default function Sales() {
   const [dateRange, setDateRange] = useState<[Date, Date]>(getCurrentMonthDates());
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [saleTotal, setSaleTotal] = useState(0);
   const queryClient = useQueryClient();
 
   const { data: products = [] } = useQuery<Product[]>({
@@ -112,6 +84,11 @@ export default function Sales() {
 
       if (!parentProduct) {
         toast.error('Produit parent non trouvé');
+        return;
+      }
+
+      if (!parentProduct.id) {
+        toast.error('ID du produit parent non trouvé');
         return;
       }
 
@@ -423,84 +400,90 @@ export default function Sales() {
           setDescription('');
           setSaleDate(new Date().toISOString().split('T')[0]);
         }}
-        title="Nouvelle vente"
+        title={
+          <div className="flex items-center space-x-3">
+            <span>Vente du</span>
+            <input
+              type="date"
+              value={saleDate}
+              onChange={(e) => setSaleDate(e.target.value)}
+              className="text-lg font-bold text-gray-900 bg-transparent border-none focus:outline-none focus:ring-0"
+              required
+            />
+          </div>
+        }
         footer={
-          <div className="flex justify-end space-x-3">
-            <button
-              type="button"
-              onClick={() => {
-                setIsOffcanvasOpen(false);
-                setClientName('');
-                setDescription('');
-                setSaleDate(new Date().toISOString().split('T')[0]);
-              }}
-              className="flex items-center justify-center w-10 h-10 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-              title="Annuler"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            <button
-              type="submit"
-              form="sale-form"
-              disabled={loading}
-              className="flex items-center justify-center w-10 h-10 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-              title="Enregistrer"
-            >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                <Save className="h-5 w-5" />
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={async (e) => {
-                e.preventDefault();
-                // Le formulaire sera soumis via le composant SaleForm
-                // Ce bouton est maintenant géré par le formulaire principal
-              }}
-              disabled={loading}
-              className="flex items-center justify-center w-10 h-10 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
-              title="Enregistrer et nouveau"
-            >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                <SaveAll className="h-5 w-5" />
-              )}
-            </button>
+          <div className="flex items-center justify-between">
+            <div className="text-lg font-bold text-gray-900">
+              Total : {saleTotal.toLocaleString('fr-FR')} MGA
+            </div>
+            <div className="flex space-x-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOffcanvasOpen(false);
+                  setClientName('');
+                  setDescription('');
+                  setSaleDate(new Date().toISOString().split('T')[0]);
+                  setSaleTotal(0);
+                }}
+                className="flex items-center justify-center w-10 h-10 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                title="Annuler"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <button
+                type="submit"
+                form="sale-form"
+                disabled={loading}
+                className="flex items-center justify-center w-10 h-10 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                title="Enregistrer"
+              >
+                {loading ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <Save className="h-5 w-5" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={async (e) => {
+                  e.preventDefault();
+                  // Le formulaire sera soumis via le composant SaleForm
+                  // Ce bouton est maintenant géré par le formulaire principal
+                }}
+                disabled={loading}
+                className="flex items-center justify-center w-10 h-10 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                title="Enregistrer et nouveau"
+              >
+                {loading ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <SaveAll className="h-5 w-5" />
+                )}
+              </button>
+            </div>
           </div>
         }
       >
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Date de l'opération</label>
-              <input
-                type="date"
-                value={saleDate}
-                onChange={(e) => setSaleDate(e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Nom du client</label>
-              <input
-                type="text"
-                value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                required
-                placeholder="Nom du client"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Nom du client</label>
+            <input
+              type="text"
+              value={clientName}
+              onChange={(e) => setClientName(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              required
+              placeholder="Nom du client"
+            />
           </div>
 
           <SaleForm
             id="sale-form"
             products={products}
             onSubmit={handleSubmit}
+            onTotalChange={setSaleTotal}
           />
 
           <div>
