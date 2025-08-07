@@ -66,7 +66,7 @@ export default function SellingPricesForm({
       </div>
 
       {fields.map((field, priceIndex) => (
-        <div key={field.id} className="border rounded-lg p-3 space-y-3">
+        <div key={field.id} className="border rounded-lg p-3 space-y-3 bg-gray-100">
           <div className="flex justify-between items-center">
             <h6 className="text-xs font-medium text-gray-600">Prix {priceIndex + 1}</h6>
             <div className="flex items-center space-x-2">

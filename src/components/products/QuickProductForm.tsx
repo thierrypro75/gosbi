@@ -150,7 +150,7 @@ const QuickProductForm = forwardRef<QuickProductFormRef, QuickProductFormProps>(
         </div>
 
         {fields.map((field, index) => (
-          <div key={field.id} className="border rounded-lg p-4 space-y-4">
+          <div key={field.id} className="border rounded-lg p-4 space-y-4 bg-gray-50">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-medium text-gray-700">Présentation {index + 1}</h4>
               {fields.length > 1 && (
