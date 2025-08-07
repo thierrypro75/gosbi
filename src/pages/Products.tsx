@@ -6,6 +6,7 @@ import { Product, Presentation } from '../lib/schemas/product';
 import Offcanvas from '../components/common/Offcanvas';
 import Modal from '../components/common/Modal';
 import ProductForm from '../components/products/ProductForm';
+import LoadingSpinner from '../components/common/LoadingSpinner';
 import { toast } from 'react-hot-toast';
 import StockAlerts from '../components/stock/StockAlerts';
 import ImportExport from '../components/products/ImportExport';
@@ -34,9 +35,10 @@ export default function Products() {
   const [selectedPresentation, setSelectedPresentation] = useState<Presentation | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: products, isLoading } = useQuery({
+  const { data: products, isLoading: isProductsLoading } = useQuery({
     queryKey: ['products'],
     queryFn: productService.getAll
   });
@@ -52,7 +54,7 @@ export default function Products() {
   );
 
   // Mutation pour créer/modifier un produit
-  const { mutate: saveProduct } = useMutation({
+  const { mutate: saveProduct, isPending: isSaving } = useMutation({
     mutationFn: async (data: Partial<Product>) => {
       console.log('Mutation started with data:', data);
       try {
@@ -94,7 +96,7 @@ export default function Products() {
   });
 
   // Mutation pour supprimer un produit
-  const { mutate: deleteProduct } = useMutation({
+  const { mutate: deleteProduct, isPending: isDeleting } = useMutation({
     mutationFn: productService.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -114,7 +116,7 @@ export default function Products() {
     }
   };
 
-  if (isLoading) {
+  if (isProductsLoading) {
     return <div>Chargement...</div>;
   }
 
@@ -392,6 +394,12 @@ export default function Products() {
       </Modal>
 
       <StockAlerts />
+      
+      {/* Loading Spinner */}
+      <LoadingSpinner 
+        isVisible={isSaving || isDeleting} 
+        message={isSaving ? "Enregistrement en cours..." : "Suppression en cours..."}
+      />
     </div>
   );
 }

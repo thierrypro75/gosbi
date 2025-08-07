@@ -7,6 +7,7 @@ import { fr } from 'date-fns/locale';
 import { Plus, Search, PackageCheck, PackageX, Package, Pencil, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
+import LoadingSpinner from '../components/common/LoadingSpinner';
 
 const statusLabels: Record<SupplyStatus, { label: string; color: string; icon: any }> = {
   'COMMANDE_INITIEE': { 
@@ -261,6 +262,12 @@ export default function Supplies() {
           Aucun approvisionnement trouvé
         </div>
       )}
+      
+      {/* Loading Spinner */}
+      <LoadingSpinner 
+        isVisible={deleteMutation.isPending} 
+        message="Suppression en cours..."
+      />
     </div>
   );
 }

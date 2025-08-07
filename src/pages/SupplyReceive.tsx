@@ -7,6 +7,7 @@ import { toast } from 'react-hot-toast';
 import { ChevronLeft, PackageCheck, PackageX } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import LoadingSpinner from '../components/common/LoadingSpinner';
 
 interface ReceiptLine extends SupplyLine {
   receivedQuantity: number;  // quantité déjà reçue
@@ -350,6 +351,12 @@ export default function SupplyReceive() {
           </button>
         </div>
       </div>
+      
+      {/* Loading Spinner */}
+      <LoadingSpinner 
+        isVisible={updateLineMutation.isPending} 
+        message="Mise à jour en cours..."
+      />
     </div>
   );
 } 

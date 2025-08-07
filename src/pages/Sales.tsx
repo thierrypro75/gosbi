@@ -7,6 +7,7 @@ import { toast } from 'react-hot-toast';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import Offcanvas from '../components/common/Offcanvas';
 import SaleForm from '../components/sales/SaleForm';
+import LoadingSpinner from '../components/common/LoadingSpinner';
 import { DateRangePicker } from 'rsuite';
 import 'rsuite/dist/rsuite.min.css';
 import { Product } from '../lib/schemas/product';
@@ -498,6 +499,12 @@ export default function Sales() {
           </div>
         </div>
       </Offcanvas>
+      
+      {/* Loading Spinner */}
+      <LoadingSpinner 
+        isVisible={loading} 
+        message="Enregistrement de la vente en cours..."
+      />
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { ChevronLeft, Plus, Trash2 } from 'lucide-react';
 import CreatableSelect from 'react-select/creatable';
 import QuickProductForm, { QuickProductFormRef } from '../components/products/QuickProductForm';
 import Modal from '../components/ui/Modal';
+import LoadingSpinner from '../components/common/LoadingSpinner';
 
 interface ProductOption {
   value: string;
@@ -536,6 +537,12 @@ export default function SupplyCreate() {
           </>
         )}
       </Modal>
+      
+      {/* Loading Spinner */}
+      <LoadingSpinner 
+        isVisible={createSupplyMutation.isPending || createProductMutation.isPending} 
+        message={createSupplyMutation.isPending ? "Création de la commande en cours..." : "Création du produit en cours..."}
+      />
     </div>
   );
 } 
