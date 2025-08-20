@@ -64,7 +64,7 @@ export default function Sales() {
     }
   };
 
-  const createSale = async (formData: { presentationId: string; sellingPriceId: string; quantity: number }) => {
+  const createSale = async (formData: { presentationId: string; sellingPriceId: string; quantity: number }, keepClient: boolean = false) => {
     if (!formData.presentationId || !formData.sellingPriceId || formData.quantity <= 0 || !selectedClient || !saleDate) return;
 
     setLoading(true);
@@ -95,6 +95,32 @@ export default function Sales() {
         return;
       }
 
+      // Si le client a l'ID "new", créer d'abord le client
+      let clientId = selectedClient?.id;
+      let clientName = selectedClient?.name || '';
+
+      if (selectedClient?.id === 'new') {
+        const clientResult = await clientService.createClient({
+          name: selectedClient.name,
+          email: '',
+          phone: '',
+          company: '',
+          status: 'ACTIVE'
+        });
+
+        if (clientResult.error) {
+          console.error('Error creating client:', clientResult.error);
+          toast.error('Erreur lors de la création du client');
+          return;
+        }
+
+        clientId = clientResult.data?.id || null;
+        clientName = clientResult.data?.name || selectedClient.name;
+
+        // Recharger la liste des clients
+        queryClient.invalidateQueries({ queryKey: ['clients'] });
+      }
+
       const result = await saleService.createSale(
         parentProduct.id,
         formData.presentationId,
@@ -102,8 +128,8 @@ export default function Sales() {
         formData.quantity,
         sellingPrice.price,
         saleDate,
-        selectedClient?.id || null,
-        selectedClient?.name || '',
+        clientId,
+        clientName,
         description
       );
 
@@ -117,12 +143,20 @@ export default function Sales() {
       queryClient.invalidateQueries({ queryKey: ['sales'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
 
-      // Réinitialiser le formulaire
-      setSelectedClient(null);
-      setDescription('');
-      setIsOffcanvasOpen(false);
-      
-      toast.success('Vente enregistrée avec succès');
+      // Réinitialiser le formulaire selon le mode
+      if (keepClient) {
+        // Mode "Enregistrer et nouveau" : garder le client, réinitialiser le reste
+        setDescription('');
+        setSaleDate(new Date().toISOString().split('T')[0]);
+        setSaleTotal(0);
+        toast.success('Vente enregistrée. Prêt pour une nouvelle vente.');
+      } else {
+        // Mode normal : tout réinitialiser
+        setSelectedClient(null);
+        setDescription('');
+        setIsOffcanvasOpen(false);
+        toast.success('Vente enregistrée avec succès');
+      }
     } catch (error) {
       console.error('Error creating sale:', error);
       toast.error('Erreur lors de l\'enregistrement de la vente');
@@ -131,8 +165,8 @@ export default function Sales() {
     }
   };
 
-  const handleSubmit = async (formData: { presentationId: string; sellingPriceId: string; quantity: number }) => {
-    await createSale(formData);
+  const handleSubmit = async (formData: { presentationId: string; sellingPriceId: string; quantity: number }, keepClient: boolean = false) => {
+    await createSale(formData, keepClient);
   };
 
   const handleDelete = async (saleId: string) => {
@@ -453,8 +487,20 @@ export default function Sales() {
                 type="button"
                 onClick={async (e) => {
                   e.preventDefault();
-                  // Le formulaire sera soumis via le composant SaleForm
-                  // Ce bouton est maintenant géré par le formulaire principal
+                  // Soumettre le formulaire avec le mode "Enregistrer et nouveau"
+                  const form = document.getElementById('sale-form') as HTMLFormElement;
+                  if (form) {
+                    const formData = new FormData(form);
+                    const data = {
+                      presentationId: formData.get('presentationId') as string,
+                      sellingPriceId: formData.get('sellingPriceId') as string,
+                      quantity: parseInt(formData.get('quantity') as string) || 1
+                    };
+
+                    if (data.presentationId && data.sellingPriceId && data.quantity > 0) {
+                      await handleSubmit(data, true); // Mode "Enregistrer et nouveau"
+                    }
+                  }
                 }}
                 disabled={loading}
                 className="flex items-center justify-center w-10 h-10 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"

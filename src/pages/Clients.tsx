@@ -172,7 +172,7 @@ export default function Clients() {
   };
 
   const handleDelete = async (clientId: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce client ?')) {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce client ?\n\nNote : Si le client a des ventes associées, il sera désactivé au lieu d\'être supprimé.')) {
       return;
     }
 
@@ -181,7 +181,7 @@ export default function Clients() {
       if (error) throw error;
       
       queryClient.invalidateQueries({ queryKey: ['clients'] });
-      toast.success('Client supprimé avec succès');
+      toast.success('Client supprimé ou désactivé avec succès');
     } catch (error) {
       console.error('Error deleting client:', error);
       toast.error('Erreur lors de la suppression du client');
