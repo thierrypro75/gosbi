@@ -15,7 +15,7 @@ type SaleFormData = z.infer<typeof saleSchema>;
 interface SaleFormProps {
   id?: string;
   products: Product[];
-  onSubmit: (data: SaleFormData) => void;
+  onSubmit: (data: SaleFormData, keepClient?: boolean) => void;
   onTotalChange?: (total: number) => void;
 }
 
@@ -63,7 +63,7 @@ export default function SaleForm({ id = 'sale-form', products, onSubmit, onTotal
 
   const onSubmitForm = async (data: SaleFormData) => {
     try {
-      await onSubmit(data);
+      await onSubmit(data, false); // Mode normal
     } catch (error) {
       console.error('Error submitting form:', error);
     }
