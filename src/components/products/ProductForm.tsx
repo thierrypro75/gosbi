@@ -75,7 +75,7 @@ export default function ProductForm({ id = 'product-form', initialData, onSubmit
             type="text"
             id="name"
             {...register('name')}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
           />
           {errors.name && (
             <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
@@ -90,7 +90,7 @@ export default function ProductForm({ id = 'product-form', initialData, onSubmit
             id="description"
             rows={3}
             {...register('description')}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
           />
           {errors.description && (
             <p className="mt-1 text-sm text-red-600">{errors.description.message}</p>
@@ -105,7 +105,7 @@ export default function ProductForm({ id = 'product-form', initialData, onSubmit
             type="text"
             id="category"
             {...register('category')}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
           />
           {errors.category && (
             <p className="mt-1 text-sm text-red-600">{errors.category.message}</p>
@@ -156,7 +156,7 @@ export default function ProductForm({ id = 'product-form', initialData, onSubmit
                 <input
                   type="text"
                   {...register(`presentations.${index}.unit`)}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
                 />
                 {errors.presentations?.[index]?.unit && (
                   <p className="mt-1 text-sm text-red-600">{errors.presentations[index].unit.message}</p>
@@ -170,7 +170,7 @@ export default function ProductForm({ id = 'product-form', initialData, onSubmit
                     type="number"
                     step="0.01"
                     {...register(`presentations.${index}.purchasePrice`, { valueAsNumber: true })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
                   />
                   {errors.presentations?.[index]?.purchasePrice && (
                     <p className="mt-1 text-sm text-red-600">{errors.presentations[index].purchasePrice.message}</p>
@@ -183,7 +183,7 @@ export default function ProductForm({ id = 'product-form', initialData, onSubmit
                     type="number"
                     step="0.01"
                     {...register(`presentations.${index}.sellingPrice`, { valueAsNumber: true })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
                     disabled
                   />
                   <p className="mt-1 text-xs text-gray-500">Ce champ est maintenu pour la compatibilité</p>
@@ -204,7 +204,7 @@ export default function ProductForm({ id = 'product-form', initialData, onSubmit
                   <input
                     type="number"
                     {...register(`presentations.${index}.stock`, { valueAsNumber: true })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed text-gray-900"
                     disabled={!!initialData}
                   />
                   {errors.presentations?.[index]?.stock && (
@@ -217,7 +217,7 @@ export default function ProductForm({ id = 'product-form', initialData, onSubmit
                   <input
                     type="number"
                     {...register(`presentations.${index}.lowStockThreshold`, { valueAsNumber: true })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
                   />
                   {errors.presentations?.[index]?.lowStockThreshold && (
                     <p className="mt-1 text-sm text-red-600">{errors.presentations[index].lowStockThreshold.message}</p>

@@ -102,7 +102,7 @@ export default function SellingPricesForm({
                 type="text"
                 {...register(`presentations.${presentationIndex}.sellingPrices.${priceIndex}.label`)}
                 placeholder="ex: Prix public, Prix grossiste..."
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
               />
             </div>
 
@@ -112,7 +112,7 @@ export default function SellingPricesForm({
                 type="number"
                 step="0.01"
                 {...register(`presentations.${presentationIndex}.sellingPrices.${priceIndex}.price`, { valueAsNumber: true })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
               />
             </div>
           </div>

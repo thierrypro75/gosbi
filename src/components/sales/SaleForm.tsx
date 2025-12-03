@@ -78,7 +78,7 @@ export default function SaleForm({ id = 'sale-form', products, onSubmit, onTotal
         <select
           id="presentationId"
           {...register('presentationId')}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
         >
           <option value="">Sélectionner un produit</option>
           {products.map((product) => (
@@ -185,7 +185,7 @@ export default function SaleForm({ id = 'sale-form', products, onSubmit, onTotal
             min="1"
             max={selectedPresentation?.stock || 1}
             {...register('quantity', { valueAsNumber: true })}
-            className="flex-1 text-center text-lg font-semibold rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="flex-1 text-center text-lg font-semibold rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
           />
           <button
             type="button"

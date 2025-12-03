@@ -101,7 +101,7 @@ const QuickProductForm = forwardRef<QuickProductFormRef, QuickProductFormProps>(
           type="text"
           id="name"
           {...register('name')}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
         />
         {errors.name && (
           <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
@@ -116,7 +116,7 @@ const QuickProductForm = forwardRef<QuickProductFormRef, QuickProductFormProps>(
           type="text"
           id="category"
           {...register('category')}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
         />
         {errors.category && (
           <p className="mt-1 text-sm text-red-600">{errors.category.message}</p>
@@ -170,7 +170,7 @@ const QuickProductForm = forwardRef<QuickProductFormRef, QuickProductFormProps>(
                 type="text"
                 placeholder="Unité (ex: 250ml, 1kg, etc.)"
                 {...register(`presentations.${index}.unit`)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
               />
               {errors.presentations?.[index]?.unit && (
                 <p className="mt-1 text-sm text-red-600">{errors.presentations[index].unit.message}</p>

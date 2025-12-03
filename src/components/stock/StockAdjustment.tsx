@@ -96,7 +96,7 @@ export default function StockAdjustment({ product, presentation, onClose }: Stoc
             min="0"
             value={quantity}
             onChange={(e) => setQuantity(Math.max(0, parseInt(e.target.value) || 0))}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-900"
           />
         </div>
 
