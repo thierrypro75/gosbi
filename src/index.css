@@ -39,4 +39,46 @@ input[type="search"],
 textarea,
 select {
   color: #111827 !important; /* text-gray-900 */
+  -webkit-text-fill-color: #111827 !important; /* Pour Safari/iOS */
+}
+
+/* Styles spécifiques pour Safari/Mac */
+input[type="text"]:not(:placeholder-shown),
+input[type="email"]:not(:placeholder-shown),
+input[type="password"]:not(:placeholder-shown),
+input[type="number"]:not(:placeholder-shown),
+input[type="tel"]:not(:placeholder-shown),
+input[type="date"]:not(:placeholder-shown),
+input[type="search"]:not(:placeholder-shown),
+textarea:not(:placeholder-shown),
+select:not([value=""]) {
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+}
+
+/* Pour tous les états (focus, active, etc.) */
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="tel"]:focus,
+input[type="date"]:focus,
+input[type="search"]:focus,
+textarea:focus,
+select:focus {
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+}
+
+input[type="text"]:active,
+input[type="email"]:active,
+input[type="password"]:active,
+input[type="number"]:active,
+input[type="tel"]:active,
+input[type="date"]:active,
+input[type="search"]:active,
+textarea:active,
+select:active {
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
 }
