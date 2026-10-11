@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Package, Plus, Pencil, Trash2, Search, History } from 'lucide-react';
+import { Package, Plus, Pencil, Trash2, History } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { productService } from '../lib/services/productService';
 import { Product, Presentation } from '../lib/schemas/product';
@@ -11,6 +11,7 @@ import { toast } from 'react-hot-toast';
 import StockAlerts from '../components/stock/StockAlerts';
 import ImportExport from '../components/products/ImportExport';
 import StockMovementHistory from '../components/stock/StockMovementHistory';
+import DataTable, { SearchInput, type DataColumn } from '../components/ui/DataTable';
 
 const truncateDescription = (description: string = '') => {
   const words = description.split(' ');
@@ -42,16 +43,6 @@ export default function Products() {
     queryKey: ['products'],
     queryFn: productService.getAll
   });
-
-  const filteredProducts = products?.filter((product: Product) =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (product.description?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.presentations.some((p: Presentation) => 
-      p.unit.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.sku || '').toLowerCase().includes(searchQuery.toLowerCase())
-    )
-  );
 
   // Mutation pour créer/modifier un produit
   const { mutate: saveProduct, isPending: isSaving } = useMutation({
@@ -120,120 +111,229 @@ export default function Products() {
     return <div>Chargement...</div>;
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col space-y-2 sm:flex-row sm:justify-between sm:items-center sm:space-y-0">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Produits</h1>
-        <div className="flex items-center space-x-1 sm:space-x-2">
-          <div className="relative flex-1 sm:flex-none">
-            <input
-              type="text"
-              placeholder="Rechercher..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full sm:w-48 h-8 sm:h-9 pl-8 pr-3 text-xs sm:text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-            />
-            <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-400" />
+  const openHistory = (product: Product, presentation: Presentation) => {
+    setSelectedProduct(product);
+    setSelectedPresentation(presentation);
+    setIsHistoryModalOpen(true);
+  };
+
+  // Une sous-ligne par présentation : hauteur fixe pour que les colonnes restent alignées.
+  const sub = 'flex h-11 flex-col justify-center';
+  const subs = (product: Product, render: (p: Presentation) => React.ReactNode) => (
+    <div className="space-y-2">
+      {product.presentations.map((p: Presentation) => (
+        <div key={p.id} className={sub}>
+          {render(p)}
+        </div>
+      ))}
+    </div>
+  );
+
+  const columns: DataColumn<Product>[] = [
+    {
+      id: 'product',
+      header: 'Produit',
+      width: 300,
+      sticky: 'left',
+      wrap: true,
+      sort: (p) => p.name,
+      search: (p) => `${p.name} ${p.description ?? ''}`,
+      cell: (p) => (
+        <div className="flex items-start gap-3">
+          <Package className="mt-0.5 h-5 w-5 shrink-0 text-subtle" aria-hidden="true" />
+          <div className="min-w-0">
+            <div className="font-medium text-ink">{p.name}</div>
+            {p.description && <div className="break-words text-sm text-muted">{truncateDescription(p.description)}</div>}
           </div>
-          <div className="flex items-center space-x-1">
-            <ImportExport buttonClassName="w-8 h-8 sm:w-9 sm:h-9 inline-flex items-center justify-center" />
-            <button
-              onClick={() => {
-                setSelectedProduct(null);
-                setIsOffcanvasOpen(true);
-              }}
-              className="w-8 h-8 sm:w-9 sm:h-9 inline-flex items-center justify-center bg-blue-600 text-white rounded hover:bg-blue-700"
-              title="Nouveau Produit"
+        </div>
+      ),
+    },
+    {
+      id: 'category',
+      header: 'Catégorie',
+      width: 140,
+      sort: (p) => p.category,
+      search: (p) => p.category,
+      cell: (p) => (
+        <span className="inline-flex items-center rounded-full bg-line/70 px-2.5 py-0.5 text-xs font-medium text-ink">
+          {p.category}
+        </span>
+      ),
+    },
+    {
+      id: 'presentation',
+      header: 'Présentation',
+      width: 190,
+      search: (p) => p.presentations.map((x: Presentation) => `${x.unit} ${x.sku ?? ''}`).join(' '),
+      cell: (p) =>
+        subs(p, (x) => (
+          <>
+            <div className="truncate font-medium text-ink">{x.unit}</div>
+            <div className="truncate text-sm text-muted">{x.sku}</div>
+          </>
+        )),
+    },
+    {
+      id: 'price',
+      header: 'Prix',
+      width: 170,
+      align: 'right',
+      cell: (p) =>
+        subs(p, (x) => (
+          <>
+            <div className="font-medium tabular-nums text-ink">{formatPrice(x.purchasePrice)}</div>
+            <div className="text-sm tabular-nums text-muted">{formatPrice(x.sellingPrice)}</div>
+          </>
+        )),
+    },
+    {
+      id: 'stock',
+      header: 'Stock',
+      width: 100,
+      align: 'right',
+      cell: (p) =>
+        subs(p, (x) => (
+          <div>
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs font-medium tabular-nums leading-4 ${
+                x.stock <= x.lowStockThreshold ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+              }`}
             >
-              <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            </button>
+              {x.stock}
+            </span>
           </div>
+        )),
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      width: 144,
+      sticky: 'right',
+      cell: (p) => (
+        <div className="space-y-2">
+          {p.presentations.map((x: Presentation, index: number) => (
+            <div key={x.id} className="flex h-11 items-center gap-1">
+              <button
+                type="button"
+                onClick={() => openHistory(p, x)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted transition-colors hover:bg-line/60 hover:text-ink"
+                title={`Historique des mouvements (${x.unit})`}
+                aria-label={`Historique des mouvements de ${p.name} (${x.unit})`}
+              >
+                <History className="h-[18px] w-[18px]" aria-hidden="true" />
+              </button>
+              {index === 0 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleEdit(p)}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-accent-ink transition-colors hover:bg-accent-soft"
+                    title="Modifier"
+                    aria-label={`Modifier ${p.name}`}
+                  >
+                    <Pencil className="h-[18px] w-[18px]" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(p.id, p.name)}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-red-600 transition-colors hover:bg-red-50 hover:text-red-700"
+                    title="Supprimer"
+                    aria-label={`Supprimer ${p.name}`}
+                  >
+                    <Trash2 className="h-[18px] w-[18px]" aria-hidden="true" />
+                  </button>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-6 md:h-[calc(100dvh-3rem)]">
+      <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight text-ink">Produits</h1>
+        <div className="flex items-center gap-2">
+          <SearchInput
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Produit, catégorie, référence…"
+            label="Rechercher parmi les produits"
+            className="flex-1 sm:w-72 sm:flex-none"
+          />
+          <ImportExport buttonClassName="w-9 h-9 inline-flex items-center justify-center" />
+          <button
+            onClick={() => {
+              setSelectedProduct(null);
+              setIsOffcanvasOpen(true);
+            }}
+            className="w-9 h-9 inline-flex shrink-0 items-center justify-center bg-blue-600 text-white rounded hover:bg-blue-700"
+            title="Nouveau Produit"
+            aria-label="Nouveau produit"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
-      <div className="bg-white shadow-md rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="hidden md:table min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Produit
-                </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Catégorie
-                </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions produit
-                </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Présentation
-                </th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Prix
-                </th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Stock
-                </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Historique
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredProducts?.map((product: Product) => (
-                product.presentations.map((presentation: Presentation, presentationIndex: number) => (
-                  <tr key={`${product.id}-${presentation.id}`} className="hover:bg-gray-50">
-                    {presentationIndex === 0 && (
-                      <>
-                        <td className="px-4 py-2" rowSpan={product.presentations.length}>
-                          <div className="flex items-center">
-                            <Package className="h-5 w-5 text-gray-400 mr-2" />
-                            <div>
-                              <div className="font-medium text-gray-900">{product.name}</div>
-                              <div className="text-gray-500 text-sm break-words max-w-xs">{truncateDescription(product.description)}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-2 whitespace-nowrap" rowSpan={product.presentations.length}>
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                            {product.category}
-                          </span>
-                        </td>
-                        <td className="px-4 py-2 whitespace-nowrap" rowSpan={product.presentations.length}>
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() => handleEdit(product)}
-                              className="text-blue-600 hover:text-blue-900"
-                              title="Modifier"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(product.id, product.name)}
-                              className="text-red-600 hover:text-red-900"
-                              title="Supprimer"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </>
-                    )}
-                    <td className="px-4 py-2 whitespace-nowrap">
-                      <div className="text-sm">
-                        <div className="font-medium text-gray-900">{presentation.unit}</div>
-                        <div className="text-gray-500">{presentation.sku}</div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-2 whitespace-nowrap">
-                      <div className="text-sm text-right">
-                        <div className="font-medium text-gray-900">{formatPrice(presentation.purchasePrice)}</div>
-                        <div className="text-gray-500">{formatPrice(presentation.sellingPrice)}</div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-right">
+      <DataTable<Product>
+        rows={products ?? []}
+        rowKey={(p) => String(p.id)}
+        label="produits"
+        caption="Liste des produits et de leurs présentations"
+        query={searchQuery}
+        onQueryChange={setSearchQuery}
+        hideSearch
+        fill
+        defaultSort={{ id: 'product', dir: 'asc' }}
+        emptyMessage="Aucun produit enregistré."
+        columns={columns}
+        mobile={{
+          render: (product) => (
+            <div className="p-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <Package className="h-4 w-4 shrink-0 text-subtle" aria-hidden="true" />
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-medium text-ink">{product.name}</h3>
+                    <p className="truncate text-xs text-muted">{truncateDescription(product.description)}</p>
+                  </div>
+                </div>
+                <div className="flex shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleEdit(product)}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-accent-ink hover:bg-accent-soft"
+                    title="Modifier"
+                    aria-label={`Modifier ${product.name}`}
+                  >
+                    <Pencil className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(product.id, product.name)}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-red-600 hover:bg-red-50"
+                    title="Supprimer"
+                    aria-label={`Supprimer ${product.name}`}
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-2 space-y-1.5">
+                {product.presentations.map((presentation: Presentation) => (
+                  <div key={presentation.id} className="flex items-center justify-between gap-2 rounded-lg border border-line px-2.5 py-2">
+                    <div className="min-w-0 text-xs">
+                      <span className="font-medium text-ink">{presentation.unit}</span>
+                      <span className="ml-1 truncate text-muted">({presentation.sku})</span>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className="text-xs tabular-nums text-ink">{formatPrice(presentation.purchasePrice)}</span>
                       <span
-                        className={`px-2 py-0.5 text-xs leading-4 font-medium rounded-full ${
+                        className={`rounded-full px-1.5 py-0.5 text-xs font-medium leading-none tabular-nums ${
                           presentation.stock <= presentation.lowStockThreshold
                             ? 'bg-red-100 text-red-800'
                             : 'bg-green-100 text-green-800'
@@ -241,110 +341,23 @@ export default function Products() {
                       >
                         {presentation.stock}
                       </span>
-                    </td>
-                    <td className="px-4 py-2">
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => {
-                            setSelectedProduct(product);
-                            setSelectedPresentation(presentation);
-                            setIsHistoryModalOpen(true);
-                          }}
-                          className="text-gray-600 hover:text-gray-900"
-                          title="Historique des mouvements"
-                        >
-                          <History className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ))}
-            </tbody>
-          </table>
-
-          {/* Mobile view */}
-          <div className="md:hidden divide-y divide-gray-200">
-            {filteredProducts?.map((product: Product) => (
-              <div key={product.id} className="p-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2 min-w-0">
-                    <Package className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-sm font-medium text-gray-900 truncate">
-                        {product.name}
-                      </h3>
-                      <p className="text-xs text-gray-500 truncate">
-                        {truncateDescription(product.description)}
-                      </p>
+                      <button
+                        type="button"
+                        onClick={() => openHistory(product, presentation)}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-line/60 hover:text-ink"
+                        title="Historique des mouvements"
+                        aria-label="Historique des mouvements"
+                      >
+                        <History className="h-4 w-4" aria-hidden="true" />
+                      </button>
                     </div>
                   </div>
-                  <div className="flex space-x-1 ml-2 flex-shrink-0">
-                    <button
-                      onClick={() => handleEdit(product)}
-                      className="text-blue-600 hover:text-blue-900 p-1"
-                      title="Modifier"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(product.id, product.name)}
-                      className="text-red-600 hover:text-red-900 p-1"
-                      title="Supprimer"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mt-1 space-y-1">
-                  {product.presentations.map((presentation: Presentation) => (
-                    <div key={presentation.id} className="border rounded px-2 py-1.5 hover:bg-gray-50">
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center min-w-0">
-                          <span className="text-xs font-medium">
-                            {presentation.unit}
-                          </span>
-                          <span className="text-xs text-gray-400 ml-1 truncate">
-                            ({presentation.sku})
-                          </span>
-                        </div>
-                        <div className="flex items-center space-x-2 flex-shrink-0">
-                          <span className="text-xs">
-                            {formatPrice(presentation.purchasePrice)}
-                          </span>
-                          <span
-                            className={`px-1.5 py-0.5 text-xs leading-none font-medium rounded-full ${
-                              presentation.stock <= presentation.lowStockThreshold
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-green-100 text-green-800'
-                            }`}
-                          >
-                            {presentation.stock}
-                          </span>
-                          <div className="flex items-center space-x-1">
-                            <button
-                              onClick={() => {
-                                setSelectedProduct(product);
-                                setSelectedPresentation(presentation);
-                                setIsHistoryModalOpen(true);
-                              }}
-                              className="text-gray-600 hover:text-gray-900"
-                              title="Historique des mouvements"
-                            >
-                              <History className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
+            </div>
+          ),
+        }}
+      />
 
       <Offcanvas
         isOpen={isOffcanvasOpen}

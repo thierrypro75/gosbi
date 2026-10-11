@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { ArrowUpCircle, ArrowDownCircle, Table2, LineChart as LineChartIcon } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import DataTable, { type DataColumn } from '../ui/DataTable';
 
 interface StockMovementHistoryProps {
   presentationId?: string;
@@ -20,6 +21,61 @@ const reasonLabels = {
 };
 
 type ViewMode = 'table' | 'chart';
+
+const formatMovementDate = (movement: any) =>
+  format(new Date(movement.created_at), 'dd/MM/yyyy HH:mm', { locale: fr });
+
+const movementLabel = (movement: any) => reasonLabels[movement.reason as keyof typeof reasonLabels] ?? movement.reason;
+
+const movementColumns: DataColumn<any>[] = [
+  {
+    id: 'date',
+    header: 'Date',
+    width: 150,
+    sticky: 'left',
+    cell: (m) => <span className="text-muted">{formatMovementDate(m)}</span>,
+    search: formatMovementDate,
+  },
+  {
+    id: 'type',
+    header: 'Type',
+    width: 190,
+    cell: (m) => (
+      <span className="inline-flex items-center font-medium">
+        {m.quantity_in ? (
+          <ArrowUpCircle className="h-4 w-4 text-green-500 mr-1.5" aria-hidden="true" />
+        ) : (
+          <ArrowDownCircle className="h-4 w-4 text-red-500 mr-1.5" aria-hidden="true" />
+        )}
+        {movementLabel(m)}
+      </span>
+    ),
+    search: movementLabel,
+  },
+  { id: 'before', header: 'Stock avant', width: 120, align: 'right', cell: (m) => <span className="tabular-nums text-muted">{m.stock_before}</span> },
+  {
+    id: 'in',
+    header: 'Entrée',
+    width: 100,
+    align: 'right',
+    cell: (m) => (m.quantity_in ? <span className="tabular-nums text-green-600">+{m.quantity_in}</span> : '—'),
+  },
+  {
+    id: 'out',
+    header: 'Sortie',
+    width: 100,
+    align: 'right',
+    cell: (m) => (m.quantity_out ? <span className="tabular-nums text-red-600">-{m.quantity_out}</span> : '—'),
+  },
+  {
+    id: 'after',
+    header: 'Stock final',
+    width: 120,
+    sticky: 'right',
+    align: 'right',
+    cell: (m) => <span className="font-medium tabular-nums">{m.stock_after}</span>,
+  },
+];
 
 export default function StockMovementHistory({ presentationId }: StockMovementHistoryProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('table');
@@ -99,59 +155,16 @@ export default function StockMovementHistory({ presentationId }: StockMovementHi
           </div>
         </div>
       ) : (
-        <div className="bg-white shadow-sm rounded-lg overflow-hidden">
-          <div className="overflow-x-auto">
-            <div className="max-h-[calc(70vh-120px)] overflow-y-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50 sticky top-0 z-10">
-                  <tr>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Stock avant</th>
-                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Entrée</th>
-                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Sortie</th>
-                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Stock Final</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {movements?.map((movement: any) => (
-                    <tr key={movement.id} className="hover:bg-gray-50">
-                      <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
-                        {format(new Date(movement.created_at), 'dd/MM/yyyy HH:mm', { locale: fr })}
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap">
-                        <span className="inline-flex items-center text-xs font-medium">
-                          {movement.quantity_in ? (
-                            <ArrowUpCircle className="h-3 w-3 text-green-500 mr-1" />
-                          ) : (
-                            <ArrowDownCircle className="h-3 w-3 text-red-500 mr-1" />
-                          )}
-                          {reasonLabels[movement.reason as keyof typeof reasonLabels]}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-right text-sm text-gray-500">
-                        {movement.stock_before}
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-right text-sm">
-                        {movement.quantity_in ? (
-                          <span className="text-green-600">+{movement.quantity_in}</span>
-                        ) : '—'}
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-right text-sm">
-                        {movement.quantity_out ? (
-                          <span className="text-red-600">-{movement.quantity_out}</span>
-                        ) : '—'}
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-right text-sm font-medium">
-                        {movement.stock_after}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        <DataTable<any>
+          rows={movements ?? []}
+          rowKey={(m) => String(m.id)}
+          label="mouvements"
+          caption="Historique des mouvements de stock"
+          searchPlaceholder="Date, type de mouvement…"
+          emptyMessage="Aucun mouvement de stock enregistré."
+          columns={movementColumns}
+          scrollClassName="max-h-[calc(70vh-200px)] min-h-[10rem]"
+        />
       )}
     </div>
   );

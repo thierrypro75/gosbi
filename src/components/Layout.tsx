@@ -1,65 +1,105 @@
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { useAuth } from '../contexts/AuthContext';
 import { Menu, Package } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function Layout() {
   const { user } = useAuth();
+  const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('sidebar-collapsed') === '1';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleCollapsed = () => setCollapsed((value) => !value);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0');
+    } catch {
+      /* stockage indisponible : le choix n'est simplement pas mémorisé */
+    }
+  }, [collapsed]);
+
+  // Ctrl/Cmd + B : réduire ou développer le menu.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        setCollapsed((value) => !value);
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!isSidebarOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsSidebarOpen(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isSidebarOpen]);
 
   if (!user) {
     return <Navigate to="/login" />;
   }
 
   return (
-    <div className="flex h-screen bg-gray-100 dark:bg-gray-800">
-      {/* Sidebar pour desktop */}
-      <div className="hidden md:block">
-        <Sidebar />
-      </div>
+    <div className="flex h-screen h-dvh bg-canvas text-ink">
+      {/* Sidebar desktop */}
+      <aside className={`hidden shrink-0 md:block ${collapsed ? 'w-[4.5rem]' : 'w-64'}`}>
+        <Sidebar collapsed={collapsed} onToggleCollapse={toggleCollapsed} />
+      </aside>
 
       {/* Sidebar mobile */}
       {isSidebarOpen && (
-        <div className="fixed inset-0 z-40 md:hidden">
-          {/* Overlay sombre */}
+        <div className="fixed inset-0 z-40 md:hidden" role="dialog" aria-modal="true" aria-label="Menu">
           <div
-            className="fixed inset-0 bg-gray-600 bg-opacity-75"
+            className="absolute inset-0 bg-ink/40"
             onClick={() => setIsSidebarOpen(false)}
+            aria-hidden="true"
           />
-          
-          {/* Sidebar */}
-          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white dark:bg-gray-900">
+          <div className="relative h-full w-72 max-w-[85vw] shadow-pop">
             <Sidebar onClose={() => setIsSidebarOpen(false)} />
           </div>
         </div>
       )}
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header mobile avec bouton menu */}
-        <div className="md:hidden bg-white dark:bg-gray-900">
-          <div className="flex items-center justify-between px-4 py-2">
-            <div className="flex items-center">
-              <button
-                type="button"
-                onClick={() => setIsSidebarOpen(true)}
-                className="text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-300"
-              >
-                <Menu className="h-6 w-6" />
-              </button>
-              <div className="flex items-center ml-3">
-                <Package className="h-6 w-6 text-blue-600" />
-                <span className="ml-2 text-lg font-bold text-gray-900 dark:text-white">Gosbi</span>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Barre mobile */}
+        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-line bg-surface px-4 md:hidden">
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen(true)}
+            aria-label="Ouvrir le menu"
+            className="-ml-2 flex h-10 w-10 items-center justify-center rounded-lg text-muted transition-colors hover:bg-line/60 hover:text-ink"
+          >
+            <Menu className="h-5 w-5" aria-hidden="true" />
+          </button>
+          <span className="flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-accent text-white">
+              <Package className="h-4 w-4" aria-hidden="true" />
+            </span>
+            <span className="text-base font-semibold tracking-tight">Gosbi</span>
+          </span>
+        </header>
 
-        <div className="flex-1 overflow-auto">
-          <div className="container mx-auto px-6 py-4">
+        <main className="flex-1 overflow-y-auto overscroll-contain">
+          <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
             <Outlet />
           </div>
-        </div>
+        </main>
       </div>
     </div>
   );

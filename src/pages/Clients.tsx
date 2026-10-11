@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Search, Edit, Trash2, User, Mail, Phone, Building, Package, ChevronUp, ChevronDown, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Plus, Edit, Trash2, User, Mail, Phone, Package, ToggleLeft, ToggleRight } from 'lucide-react';
 import { clientService, Client, CreateClientData } from '../lib/services/clientService';
 import { saleService, Sale } from '../lib/services/saleService';
 import { toast } from 'react-hot-toast';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import Offcanvas from '../components/common/Offcanvas';
+import DataTable, { SearchInput, type DataColumn } from '../components/ui/DataTable';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 
 export default function Clients() {
@@ -12,8 +13,6 @@ export default function Clients() {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
-  const [sortField, setSortField] = useState<'name' | 'email' | 'phone' | 'ca'>('ca');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState<CreateClientData>({
@@ -69,52 +68,6 @@ export default function Clients() {
       };
     });
   }, [clients, allSales]);
-
-  const filteredAndSortedClients = useMemo(() => {
-    // Filtrer les clients
-    let filtered = clientsWithCA.filter(client =>
-      client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      client.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      client.phone?.includes(searchQuery) ||
-      client.company?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-    // Trier les clients
-    filtered.sort((a, b) => {
-      let aValue: string | number;
-      let bValue: string | number;
-
-      switch (sortField) {
-        case 'name':
-          aValue = a.name.toLowerCase();
-          bValue = b.name.toLowerCase();
-          break;
-        case 'email':
-          aValue = (a.email || '').toLowerCase();
-          bValue = (b.email || '').toLowerCase();
-          break;
-        case 'phone':
-          aValue = (a.phone || '').toLowerCase();
-          bValue = (b.phone || '').toLowerCase();
-          break;
-        case 'ca':
-          aValue = a.ca;
-          bValue = b.ca;
-          break;
-        default:
-          aValue = a.ca;
-          bValue = b.ca;
-      }
-
-      if (sortDirection === 'asc') {
-        return aValue > bValue ? 1 : -1;
-      } else {
-        return aValue < bValue ? 1 : -1;
-      }
-    });
-
-    return filtered;
-  }, [clientsWithCA, searchQuery, sortField, sortDirection]);
 
   const resetForm = () => {
     setFormData({
@@ -209,15 +162,6 @@ export default function Clients() {
     window.open(`tel:${formattedNumber}`, '_self');
   };
 
-  const handleSort = (field: 'name' | 'email' | 'phone' | 'ca') => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('desc');
-    }
-  };
-
   const handleToggleStatus = async (client: Client) => {
     const newStatus = client.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     const action = newStatus === 'ACTIVE' ? 'activé' : 'désactivé';
@@ -234,31 +178,172 @@ export default function Clients() {
     }
   };
 
-  return (
-    <div className="flex flex-col h-screen space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
-        <button
-          onClick={() => {
-            resetForm();
-            setIsOffcanvasOpen(true);
-          }}
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Nouveau client
-        </button>
-      </div>
+  type ClientRow = Client & { ca: number };
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Rechercher des clients..."
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-        />
+  const iconButton = 'inline-flex h-9 w-9 items-center justify-center rounded-lg transition-colors';
+
+  const columns: DataColumn<ClientRow>[] = [
+    {
+      id: 'name',
+      header: 'Nom',
+      width: 240,
+      sticky: 'left',
+      sort: (c) => c.name,
+      search: (c) => `${c.name} ${c.company ?? ''}`,
+      cell: (c) => (
+        <div className="flex items-center gap-3">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-soft">
+            <User className="h-4 w-4 text-accent-ink" aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <p className="truncate font-medium text-ink">{c.name}</p>
+            {c.company && <p className="truncate text-xs text-muted">{c.company}</p>}
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: 'email',
+      header: 'Email',
+      width: 250,
+      sort: (c) => c.email || '',
+      search: (c) => c.email,
+      cell: (c) =>
+        c.email ? (
+          <span className="inline-flex max-w-full items-center gap-1.5">
+            <Mail className="h-3.5 w-3.5 shrink-0 text-subtle" aria-hidden="true" />
+            <span className="truncate">{c.email}</span>
+          </span>
+        ) : (
+          <span className="text-subtle">–</span>
+        ),
+    },
+    {
+      id: 'phone',
+      header: 'Téléphone',
+      width: 170,
+      sort: (c) => c.phone || '',
+      search: (c) => c.phone,
+      cell: (c) =>
+        c.phone ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCall(c.phone!);
+            }}
+            className="inline-flex items-center gap-1.5 rounded text-accent-ink hover:underline"
+            title="Appeler ce numéro"
+          >
+            <Phone className="h-3.5 w-3.5" aria-hidden="true" />
+            {c.phone}
+          </button>
+        ) : (
+          <span className="text-subtle">–</span>
+        ),
+    },
+    {
+      id: 'ca',
+      header: 'CA',
+      width: 170,
+      align: 'right',
+      sort: (c) => c.ca,
+      cell: (c) => <span className="font-medium tabular-nums">{c.ca.toLocaleString('fr-MG')} Ar</span>,
+      footer: (rows) => (
+        <span className="tabular-nums text-accent-ink">
+          {rows.reduce((sum, c) => sum + c.ca, 0).toLocaleString('fr-MG')} Ar
+        </span>
+      ),
+    },
+    {
+      id: 'status',
+      header: 'Statut',
+      width: 140,
+      align: 'center',
+      sort: (c) => (c.status === 'ACTIVE' ? 1 : 0),
+      cell: (c) => (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleToggleStatus(c);
+          }}
+          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+            c.status === 'ACTIVE'
+              ? 'bg-green-100 text-green-800 hover:bg-green-200'
+              : 'bg-red-100 text-red-800 hover:bg-red-200'
+          }`}
+          title={c.status === 'ACTIVE' ? 'Désactiver le client' : 'Activer le client'}
+        >
+          {c.status === 'ACTIVE' ? (
+            <ToggleRight className="h-3.5 w-3.5" aria-hidden="true" />
+          ) : (
+            <ToggleLeft className="h-3.5 w-3.5" aria-hidden="true" />
+          )}
+          {c.status === 'ACTIVE' ? 'Actif' : 'Inactif'}
+        </button>
+      ),
+    },
+    {
+      id: 'actions',
+      header: <span className="sr-only">Actions</span>,
+      width: 104,
+      sticky: 'right',
+      align: 'right',
+      cell: (c) => (
+        <div className="flex justify-end gap-1">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEdit(c);
+            }}
+            className={`${iconButton} text-accent-ink hover:bg-accent-soft`}
+            title="Modifier"
+            aria-label={`Modifier ${c.name}`}
+          >
+            <Edit className="h-[18px] w-[18px]" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete(c.id);
+            }}
+            className={`${iconButton} text-red-600 hover:bg-red-50 hover:text-red-700`}
+            title="Supprimer"
+            aria-label={`Supprimer ${c.name}`}
+          >
+            <Trash2 className="h-[18px] w-[18px]" aria-hidden="true" />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-6 md:h-[calc(100dvh-3rem)]">
+      <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight text-ink">Clients</h1>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <SearchInput
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Nom, email, téléphone…"
+            label="Rechercher parmi les clients"
+            className="sm:w-72"
+          />
+          <button
+            onClick={() => {
+              resetForm();
+              setIsOffcanvasOpen(true);
+            }}
+            className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 whitespace-nowrap"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Nouveau client
+          </button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -266,192 +351,57 @@ export default function Clients() {
           <LoadingSpinner isVisible={true} message="Chargement..." />
         </div>
       ) : (
-        <div className="bg-white shadow overflow-hidden sm:rounded-md flex-1 flex flex-col min-h-0">
-          {/* En-tête avec colonnes triables */}
-          <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
-            <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-700">
-              <div className="col-span-2">
-                <button
-                  onClick={() => handleSort('name')}
-                  className="flex items-center space-x-1 hover:text-gray-900"
-                >
-                  <span>Nom</span>
-                  {sortField === 'name' && (
-                    sortDirection === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
-              <div className="col-span-2">
-                <button
-                  onClick={() => handleSort('email')}
-                  className="flex items-center space-x-1 hover:text-gray-900"
-                >
-                  <span>Email</span>
-                  {sortField === 'email' && (
-                    sortDirection === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
-              <div className="col-span-2">
-                <button
-                  onClick={() => handleSort('phone')}
-                  className="flex items-center space-x-1 hover:text-gray-900"
-                >
-                  <span>Téléphone</span>
-                  {sortField === 'phone' && (
-                    sortDirection === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
-              <div className="col-span-2">
-                <button
-                  onClick={() => handleSort('ca')}
-                  className="flex items-center space-x-1 hover:text-gray-900"
-                >
-                  <span>CA</span>
-                  {sortField === 'ca' && (
-                    sortDirection === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
-              <div className="col-span-2">Statut</div>
-              <div className="col-span-2">Actions</div>
-            </div>
-          </div>
-          
-          <div className="flex-1 overflow-y-auto">
-            <ul className="divide-y divide-gray-200">
-              {filteredAndSortedClients.map((client) => (
-              <li key={client.id} className="px-6 py-4 hover:bg-gray-50 cursor-pointer" onClick={() => handleEdit(client)}>
-                <div className="grid grid-cols-12 gap-4 items-center">
-                  {/* Nom et informations */}
-                  <div className="col-span-2">
-                    <div className="flex items-center space-x-3">
-                      <div className="flex-shrink-0">
-                        <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                          <User className="h-4 w-4 text-blue-600" />
-                        </div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                          {client.name}
-                        </p>
-                        {client.company && (
-                          <p className="text-xs text-gray-500 truncate">
-                            {client.company}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Email */}
-                  <div className="col-span-2">
-                    <div className="flex items-center space-x-1">
-                      {client.email ? (
-                        <>
-                          <Mail className="h-3 w-3 text-gray-400" />
-                          <span className="text-sm text-gray-900 truncate">{client.email}</span>
-                        </>
-                      ) : (
-                        <span className="text-sm text-gray-400">-</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Téléphone */}
-                  <div className="col-span-2">
-                    <div className="flex items-center space-x-1">
-                      {client.phone ? (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (client.phone) {
-                              handleCall(client.phone);
-                            }
-                          }}
-                          className="flex items-center space-x-1 text-blue-600 hover:text-blue-800 transition-colors"
-                          title="Appeler ce numéro"
-                        >
-                          <Phone className="h-3 w-3" />
-                          <span className="text-sm truncate">{client.phone}</span>
-                        </button>
-                      ) : (
-                        <span className="text-sm text-gray-400">-</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* CA */}
-                  <div className="col-span-2">
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-gray-900">
-                        {client.ca.toLocaleString('fr-MG')} Ar
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Statut */}
-                  <div className="col-span-2">
-                    <div className="flex items-center justify-center">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleToggleStatus(client);
-                        }}
-                        className={`flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                          client.status === 'ACTIVE'
-                            ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                            : 'bg-red-100 text-red-800 hover:bg-red-200'
-                        }`}
-                        title={client.status === 'ACTIVE' ? 'Désactiver le client' : 'Activer le client'}
-                      >
-                        {client.status === 'ACTIVE' ? (
-                          <>
-                            <ToggleRight className="h-3 w-3" />
-                            <span>Actif</span>
-                          </>
-                        ) : (
-                          <>
-                            <ToggleLeft className="h-3 w-3" />
-                            <span>Inactif</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="col-span-2">
-                    <div className="flex items-center justify-end space-x-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEdit(client);
-                        }}
-                        className="p-2 text-gray-400 hover:text-gray-600"
-                        title="Modifier"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(client.id);
-                        }}
-                        className="p-2 text-gray-400 hover:text-red-600"
-                        title="Supprimer"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
+        <DataTable<ClientRow>
+          rows={clientsWithCA}
+          rowKey={(c) => c.id}
+          label="clients"
+          caption="Liste des clients"
+          query={searchQuery}
+          onQueryChange={setSearchQuery}
+          hideSearch
+          fill
+          footerLabel="CA cumulé"
+          defaultSort={{ id: 'ca', dir: 'desc' }}
+          onRowClick={handleEdit}
+          emptyMessage="Aucun client enregistré."
+          columns={columns}
+          mobile={{
+            render: (c) => (
+              <div className="flex items-start gap-3 p-4" onClick={() => handleEdit(c)}>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft">
+                  <User className="h-4 w-4 text-accent-ink" aria-hidden="true" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium text-ink">{c.name}</p>
+                  {c.company && <p className="truncate text-xs text-muted">{c.company}</p>}
+                  <p className="mt-1 text-sm text-muted">{c.email || c.phone || '–'}</p>
+                  <p className="mt-1 text-sm font-medium tabular-nums text-ink">
+                    {c.ca.toLocaleString('fr-MG')} Ar
+                  </p>
                 </div>
-              </li>
-            ))}
-            </ul>
-          </div>
-        </div>
+                <div className="flex shrink-0 items-center" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleStatus(c)}
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                      c.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    {c.status === 'ACTIVE' ? 'Actif' : 'Inactif'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(c.id)}
+                    className={`${iconButton} text-red-600 hover:bg-red-50`}
+                    aria-label={`Supprimer ${c.name}`}
+                  >
+                    <Trash2 className="h-[18px] w-[18px]" aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+            ),
+          }}
+        />
       )}
 
       <Offcanvas

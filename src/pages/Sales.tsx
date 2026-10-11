@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Plus, Trash2, ChevronLeft, ChevronRight, X, Save, SaveAll } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ShoppingCart, Plus, Trash2, X, Save, SaveAll } from 'lucide-react';
 import { formatPrice } from '../lib/utils';
 import { saleService, Sale } from '../lib/services/saleService';
 import { productService } from '../lib/services/productService';
@@ -10,6 +10,7 @@ import Offcanvas from '../components/common/Offcanvas';
 import SaleForm from '../components/sales/SaleForm';
 import ClientSelector from '../components/sales/ClientSelector';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import DataTable, { SearchInput, type DataColumn } from '../components/ui/DataTable';
 import { DateRangePicker } from 'rsuite';
 import 'rsuite/dist/rsuite.min.css';
 import { Product } from '../lib/schemas/product';
@@ -31,12 +32,14 @@ export default function Sales() {
   const [saleDate, setSaleDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [description, setDescription] = useState<string>('');
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [dateRange, setDateRange] = useState<[Date, Date]>(getCurrentMonthDates());
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(25);
   const [saleTotal, setSaleTotal] = useState(0);
   const queryClient = useQueryClient();
+  // Une seule bascule automatique vers la dernière période avec des ventes, sauf si l'utilisateur choisit lui-même.
+  const periodSettled = useRef(false);
 
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ['products'],
@@ -44,7 +47,7 @@ export default function Sales() {
   });
 
   const { data: salesData } = useQuery({
-    queryKey: ['sales', dateRange, currentPage],
+    queryKey: ['sales', dateRange],
     queryFn: async () => {
       const startDate = dateRange[0].toISOString().split('T')[0];
       const endDate = new Date(dateRange[1].getTime() + 24 * 60 * 60 * 1000 - 1).toISOString().split('T')[0];
@@ -53,14 +56,26 @@ export default function Sales() {
   });
 
   const sales = salesData?.data || [];
-  const totalSales = sales.length;
-  const totalPages = Math.ceil(totalSales / itemsPerPage);
-  const currentSales = sales.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    if (periodSettled.current || !salesData) return;
+    periodSettled.current = true;
+    if (sales.length > 0) return;
+
+    saleService.getLatestSaleDate().then((latest) => {
+      if (!latest) return;
+      const d = new Date(latest);
+      const first = new Date(d.getFullYear(), d.getMonth(), 1);
+      const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      last.setHours(23, 59, 59, 999);
+      setDateRange([first, last]);
+    });
+  }, [salesData]);
 
   const handleDateRangeChange = (dates: [Date, Date] | null) => {
+    periodSettled.current = true;
     if (dates) {
       setDateRange(dates);
-      setCurrentPage(1);
     }
   };
 
@@ -189,14 +204,106 @@ export default function Sales() {
     }
   };
 
-
+  const salesColumns: DataColumn<Sale>[] = [
+    {
+      id: 'date',
+      header: 'Date',
+      width: 104,
+      sticky: 'left',
+      cell: (sale) => <span className="text-muted">{new Date(sale.sale_date).toLocaleDateString('fr-FR')}</span>,
+      search: (sale) => new Date(sale.sale_date).toLocaleDateString('fr-FR'),
+    },
+    {
+      id: 'client',
+      header: 'Client',
+      width: 144,
+      sticky: 'left',
+      cell: (sale) => sale.client_name,
+      search: (sale) => sale.client_name,
+    },
+    {
+      id: 'product',
+      header: 'Produit',
+      width: 240,
+      sticky: 'left',
+      cell: (sale) => (
+        <div className="flex items-center gap-3">
+          <ShoppingCart className="h-5 w-5 shrink-0 text-subtle" aria-hidden="true" />
+          <div className="min-w-0">
+            <div className="truncate text-ink">{sale.product?.name}</div>
+            <div className="truncate text-muted">{sale.presentation?.unit}</div>
+          </div>
+        </div>
+      ),
+      search: (sale) => `${sale.product?.name ?? ''} ${sale.presentation?.unit ?? ''}`,
+    },
+    {
+      id: 'quantity',
+      header: 'Quantité',
+      width: 104,
+      align: 'right',
+      cell: (sale) => <span className="tabular-nums">{sale.quantity}</span>,
+    },
+    {
+      id: 'unit_price',
+      header: 'Prix unitaire',
+      width: 152,
+      align: 'right',
+      cell: (sale) => <span className="tabular-nums">{formatPrice(sale.unit_price)}</span>,
+    },
+    {
+      id: 'total',
+      header: 'Total',
+      width: 152,
+      align: 'right',
+      cell: (sale) => <span className="font-medium tabular-nums">{formatPrice(sale.total_amount)}</span>,
+      footer: (rows) => (
+        <span className="tabular-nums text-accent-ink">
+          {formatPrice(rows.reduce((sum, sale) => sum + sale.total_amount, 0))}
+        </span>
+      ),
+    },
+    {
+      id: 'description',
+      header: 'Description',
+      cell: (sale) => <span className="text-muted">{sale.description || '–'}</span>,
+      search: (sale) => sale.description,
+      wrap: true,
+      cellClassName: 'min-w-[12rem]',
+    },
+    {
+      id: 'actions',
+      header: <span className="sr-only">Actions</span>,
+      width: 72,
+      sticky: 'right',
+      align: 'center',
+      cell: (sale) => (
+        <button
+          type="button"
+          onClick={() => handleDelete(sale.id)}
+          aria-label={`Supprimer la vente de ${sale.client_name}`}
+          title="Supprimer"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-red-600 transition-colors hover:bg-red-50 hover:text-red-700"
+        >
+          <Trash2 className="h-[18px] w-[18px]" aria-hidden="true" />
+        </button>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold text-gray-900">Ventes</h1>
-        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center gap-4 sm:flex-grow sm:ml-8">
-          <div className="relative flex-grow" style={{ zIndex: 20 }}>
+    <div className="flex flex-col gap-6 md:h-[calc(100dvh-3rem)]">
+      <div className="flex shrink-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight text-ink">Ventes</h1>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center lg:justify-end">
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Client, produit, description…"
+            label="Rechercher parmi les ventes"
+            className="sm:w-60"
+          />
+          <div className="relative w-full sm:w-64" style={{ zIndex: 20 }}>
             <DateRangePicker
               value={dateRange}
               onChange={handleDateRangeChange}
@@ -251,184 +358,75 @@ export default function Sales() {
       </div>
 
       {/* Tableau des ventes */}
-      <div className="bg-white shadow-md rounded-lg overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4 text-sm text-gray-500">
-            <div>
-              Total : <span className="font-medium text-gray-900">{totalSales}</span> ventes
-            </div>
-          </div>
-          {totalPages > 1 && (
-            <div className="flex items-center space-x-2 text-sm text-gray-500">
-              <span>Page {currentPage} sur {totalPages}</span>
-              <div className="flex items-center space-x-1">
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="relative inline-flex items-center rounded-md p-1 text-gray-400 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  className="relative inline-flex items-center rounded-md p-1 text-gray-400 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="overflow-x-auto">
-          {/* Desktop view */}
-          <table className="hidden md:table min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Client
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Produit
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Quantité
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Prix unitaire
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Total
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Description
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {currentSales.map((sale) => (
-                <tr key={sale.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(sale.sale_date).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {sale.client_name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <ShoppingCart className="h-5 w-5 text-gray-400 mr-3" />
-                      <div className="text-sm">
-                        <div className="text-gray-900">{sale.product?.name}</div>
-                        <div className="text-gray-500">{sale.presentation?.unit}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {sale.quantity}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatPrice(sale.unit_price)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                    {formatPrice(sale.total_amount)}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500 max-w-xs break-words">
-                    {sale.description || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => handleDelete(sale.id)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      <Trash2 className="h-5 w-5" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              <tr className="bg-gray-50">
-                <td colSpan={5} className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
-                  Total général
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600">
-                  {formatPrice(sales.reduce((sum, sale) => sum + sale.total_amount, 0))}
-                </td>
-                <td colSpan={2}></td>
-              </tr>
-            </tbody>
-          </table>
-
-          {/* Mobile view */}
-          <div className="md:hidden divide-y divide-gray-200">
-            {currentSales.map((sale) => (
-              <div key={sale.id} className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <ShoppingCart className="h-10 w-10 text-gray-400" />
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-900">
-                        {sale.product?.name}
-                        <span className="text-gray-500 ml-2">({sale.presentation?.unit})</span>
-                      </h3>
-                      <p className="text-sm text-gray-500">
-                        {new Date(sale.sale_date).toLocaleDateString()}
-                      </p>
-                      <p className="text-sm text-gray-700">
-                        Client: {sale.client_name}
-                      </p>
-                    </div>
+      <DataTable<Sale>
+        rows={sales}
+        rowKey={(sale) => sale.id}
+        label="ventes"
+        caption="Liste des ventes"
+        query={search}
+        onQueryChange={setSearch}
+        hideSearch
+        pageSize={itemsPerPage}
+        fill
+        footerLabel="Total général"
+        emptyMessage="Aucune vente sur cette période."
+        columns={salesColumns}
+        mobile={{
+          render: (sale) => (
+            <div className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <ShoppingCart className="h-8 w-8 shrink-0 text-subtle" aria-hidden="true" />
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-medium text-ink">
+                      {sale.product?.name}
+                      <span className="ml-2 text-muted">({sale.presentation?.unit})</span>
+                    </h3>
+                    <p className="text-sm text-muted">{new Date(sale.sale_date).toLocaleDateString('fr-FR')}</p>
+                    <p className="text-sm text-ink">Client : {sale.client_name}</p>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4 pt-2">
-                  <div>
-                    <p className="text-xs text-gray-500">Quantité</p>
-                    <p className="text-sm font-medium text-gray-900">{sale.quantity}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Prix unitaire</p>
-                    <p className="text-sm font-medium text-gray-900">
-                      {formatPrice(sale.unit_price)}
-                    </p>
-                  </div>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(sale.id)}
+                  aria-label="Supprimer la vente"
+                  className="-mr-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700"
+                >
+                  <Trash2 className="h-5 w-5" aria-hidden="true" />
+                </button>
+              </div>
+              <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <dt className="text-xs text-muted">Quantité</dt>
+                  <dd className="font-medium tabular-nums text-ink">{sale.quantity}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted">Prix unitaire</dt>
+                  <dd className="font-medium tabular-nums text-ink">{formatPrice(sale.unit_price)}</dd>
+                </div>
+                <div className="col-span-2">
+                  <dt className="text-xs text-muted">Total</dt>
+                  <dd className="font-semibold tabular-nums text-accent-ink">{formatPrice(sale.total_amount)}</dd>
+                </div>
+                {sale.description && (
                   <div className="col-span-2">
-                    <p className="text-xs text-gray-500">Total</p>
-                    <p className="text-sm font-medium text-blue-600">
-                      {formatPrice(sale.total_amount)}
-                    </p>
+                    <dt className="text-xs text-muted">Description</dt>
+                    <dd className="text-ink">{sale.description}</dd>
                   </div>
-                  {sale.description && (
-                    <div className="col-span-2">
-                      <p className="text-xs text-gray-500">Description</p>
-                      <p className="text-sm text-gray-700">{sale.description}</p>
-                    </div>
-                  )}
-                  <div className="col-span-2 flex justify-end">
-                    <button
-                      onClick={() => handleDelete(sale.id)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      <Trash2 className="h-5 w-5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-            <div className="p-4 bg-gray-50">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-gray-900">Total général</span>
-                <span className="text-sm font-bold text-blue-600">
-                  {formatPrice(sales.reduce((sum, sale) => sum + sale.total_amount, 0))}
-                </span>
-              </div>
+                )}
+              </dl>
             </div>
-          </div>
-        </div>
-      </div>
+          ),
+          footer: (rows) => (
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-ink">Total général</span>
+              <span className="text-sm font-semibold tabular-nums text-accent-ink">
+                {formatPrice(rows.reduce((sum, sale) => sum + sale.total_amount, 0))}
+              </span>
+            </div>
+          ),
+        }}
+      />
 
       <Offcanvas
         isOpen={isOffcanvasOpen}

@@ -146,15 +146,37 @@ export const saleService = {
         query = query.lte('sale_date', formattedEndDate.toISOString());
       }
 
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      
-      return { data, error: null };
+      // Supabase plafonne chaque réponse à 1000 lignes : on lit par pages pour ne rien tronquer.
+      const PAGE_SIZE = 1000;
+      let all: Sale[] = [];
+      for (let from = 0; ; from += PAGE_SIZE) {
+        const { data, error } = await query.range(from, from + PAGE_SIZE - 1);
+        if (error) throw error;
+        all = all.concat((data as Sale[]) ?? []);
+        if (!data || data.length < PAGE_SIZE) break;
+      }
+
+      return { data: all, error: null };
     } catch (error) {
       console.error('Error fetching sales:', error);
       return { data: null, error: error as Error };
     }
+  },
+
+  /** Date de la vente active la plus récente, ou null s'il n'y en a aucune. */
+  async getLatestSaleDate(): Promise<string | null> {
+    const { data, error } = await supabase
+      .from('sales')
+      .select('sale_date')
+      .eq('status', 'ACTIVE')
+      .order('sale_date', { ascending: false })
+      .limit(1);
+
+    if (error) {
+      console.error('Error fetching latest sale date:', error);
+      return null;
+    }
+    return data?.[0]?.sale_date ?? null;
   },
 
   async getSalesByClient(

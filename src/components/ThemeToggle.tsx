@@ -3,23 +3,26 @@ import { useTheme } from '../contexts/ThemeContext';
 import { Moon, Sun } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-export const ThemeToggle: React.FC = () => {
+interface ThemeToggleProps {
+  className?: string;
+  /** Mode réduit : icône seule, libellé réservé aux lecteurs d'écran. */
+  collapsed?: boolean;
+}
+
+export const ThemeToggle: React.FC<ThemeToggleProps> = ({ className, collapsed = false }) => {
   const { theme, toggleTheme } = useTheme();
+  const Icon = theme === 'light' ? Moon : Sun;
+  const label = theme === 'light' ? 'Mode sombre' : 'Mode clair';
 
   return (
     <button
+      type="button"
       onClick={toggleTheme}
-      className={cn(
-        'w-full group flex items-center px-2 py-2 text-sm font-medium rounded-md',
-        'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-      )}
+      title={collapsed ? label : undefined}
+      className={cn('text-muted hover:bg-line/60 hover:text-ink', className)}
     >
-      {theme === 'light' ? (
-        <Moon className="mr-3 h-5 w-5 text-gray-400 dark:text-gray-500 group-hover:text-gray-500 dark:group-hover:text-gray-400" />
-      ) : (
-        <Sun className="mr-3 h-5 w-5 text-gray-400 dark:text-gray-500 group-hover:text-gray-500 dark:group-hover:text-gray-400" />
-      )}
-      {theme === 'light' ? 'Mode sombre' : 'Mode clair'}
+      <Icon className="h-[18px] w-[18px] shrink-0 text-subtle group-hover:text-ink" strokeWidth={1.75} aria-hidden="true" />
+      <span className={cn(collapsed && 'sr-only')}>{label}</span>
     </button>
   );
-}; 
+};

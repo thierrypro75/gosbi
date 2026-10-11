@@ -8,6 +8,7 @@ import { ChevronLeft, PackageCheck, PackageX } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import DataTable, { type DataColumn } from '../components/ui/DataTable';
 
 interface ReceiptLine extends SupplyLine {
   receivedQuantity: number;  // quantité déjà reçue
@@ -111,6 +112,110 @@ export default function SupplyReceive() {
     return <div>Chargement...</div>;
   }
 
+  const statusStyles = (status: SupplyLineStatus) =>
+    status === 'RECEPTIONNE'
+      ? 'bg-green-100 text-green-800'
+      : status === 'PARTIELLEMENT_RECEPTIONNE'
+      ? 'bg-yellow-100 text-yellow-800'
+      : status === 'NON_RECEPTIONNE'
+      ? 'bg-red-100 text-red-800'
+      : 'bg-gray-100 text-gray-800';
+
+  const receiptColumns: DataColumn<ReceiptLine>[] = [
+    {
+      id: 'product',
+      header: 'Produit',
+      width: 280,
+      sticky: 'left',
+      wrap: true,
+      cell: (line) => (
+        <>
+          <div className="font-medium">{line.product?.name}</div>
+          <div className="text-sm text-muted">{line.presentation?.unit}</div>
+        </>
+      ),
+      search: (line) => `${line.product?.name ?? ''} ${line.presentation?.unit ?? ''}`,
+    },
+    { id: 'ordered', header: 'Commandé', width: 120, align: 'right', cell: (line) => <span className="tabular-nums text-muted">{line.ordered_quantity}</span> },
+    { id: 'received', header: 'Déjà reçu', width: 120, align: 'right', cell: (line) => <span className="tabular-nums text-muted">{line.receivedQuantity}</span> },
+    {
+      id: 'incoming',
+      header: 'À recevoir',
+      width: 130,
+      align: 'right',
+      cell: (line) => {
+        const index = receiptLines.indexOf(line);
+        const remaining = line.ordered_quantity - line.receivedQuantity;
+        return remaining === 0 ? (
+          <span className="tabular-nums text-muted">0</span>
+        ) : (
+          <input
+            type="number"
+            min="0"
+            max={remaining}
+            value={line.newQuantity}
+            onChange={(e) => handleQuantityChange(index, parseInt(e.target.value) || 0)}
+            className="w-24 px-2 py-1 text-right border rounded-md"
+            placeholder={`Reste: ${remaining}`}
+            aria-label={`Quantité à recevoir pour ${line.product?.name ?? 'ce produit'}`}
+          />
+        );
+      },
+    },
+    {
+      id: 'purchase',
+      header: "Prix d'achat",
+      width: 140,
+      align: 'right',
+      cell: (line) => (
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          value={line.purchasePrice}
+          onChange={(e) => handlePriceChange(receiptLines.indexOf(line), 'purchasePrice', parseFloat(e.target.value) || 0)}
+          className="w-24 px-2 py-1 text-right border rounded-md"
+          aria-label={`Prix d'achat pour ${line.product?.name ?? 'ce produit'}`}
+        />
+      ),
+    },
+    {
+      id: 'selling',
+      header: 'Prix de vente',
+      width: 140,
+      align: 'right',
+      cell: (line) => (
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          value={line.sellingPrice}
+          onChange={(e) => handlePriceChange(receiptLines.indexOf(line), 'sellingPrice', parseFloat(e.target.value) || 0)}
+          className="w-24 px-2 py-1 text-right border rounded-md"
+          aria-label={`Prix de vente pour ${line.product?.name ?? 'ce produit'}`}
+        />
+      ),
+    },
+    {
+      id: 'status',
+      header: 'État',
+      width: 96,
+      sticky: 'right',
+      align: 'center',
+      cell: (line) => (
+        <div className="flex justify-center">
+          <div className={`flex justify-center items-center w-10 h-10 rounded-md ${statusStyles(line.status)}`}>
+            {line.status === 'RECEPTIONNE' || line.status === 'PARTIELLEMENT_RECEPTIONNE' ? (
+              <PackageCheck className="w-6 h-6" aria-label={line.status === 'RECEPTIONNE' ? 'Réceptionné' : 'Partiellement réceptionné'} />
+            ) : (
+              <PackageX className="w-6 h-6" aria-label={line.status === 'NON_RECEPTIONNE' ? 'Non réceptionné' : 'En attente'} />
+            )}
+          </div>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="container mx-auto px-4 py-2">
       <div className="mb-6">
@@ -123,7 +228,7 @@ export default function SupplyReceive() {
         </button>
       </div>
 
-      <div className="bg-white shadow-sm rounded-lg flex flex-col h-[calc(100vh-8rem)]">
+      <div className="bg-white shadow-sm rounded-lg flex flex-col h-[calc(100vh-8rem)] h-[calc(100dvh-8rem)]">
         <div className="p-6">
           <h1 className="text-2xl font-bold">
             Réception de la commande du {format(new Date(supply.created_at!), 'dd/MM/yyyy HH:mm', { locale: fr })}
@@ -134,98 +239,16 @@ export default function SupplyReceive() {
         </div>
 
         {/* Vue desktop */}
-        <div className="hidden md:flex flex-col flex-1 overflow-hidden">
-          <div className="shadow-sm relative z-10">
-            <table className="min-w-full divide-y divide-gray-200 border-b border-gray-200">
-              <thead className="bg-gray-50 shadow-sm">
-                <tr>
-                  <th scope="col" className="sticky top-0 bg-gray-50 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase shadow-sm border-x border-gray-200 w-1/4">Produit</th>
-                  <th scope="col" className="sticky top-0 bg-gray-50 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase shadow-sm border-r border-gray-200 w-[120px]">Commandé</th>
-                  <th scope="col" className="sticky top-0 bg-gray-50 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase shadow-sm border-r border-gray-200 w-[120px]">Déjà reçu</th>
-                  <th scope="col" className="sticky top-0 bg-gray-50 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase shadow-sm border-r border-gray-200 w-[120px]">À recevoir</th>
-                  <th scope="col" className="sticky top-0 bg-gray-50 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase shadow-sm border-r border-gray-200 w-[120px]">Prix d'achat</th>
-                  <th scope="col" className="sticky top-0 bg-gray-50 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase shadow-sm border-r border-gray-200 w-[120px]">Prix de vente</th>
-                  <th scope="col" className="sticky top-0 bg-gray-50 px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase shadow-sm border-r border-gray-200 w-[100px]">État</th>
-                </tr>
-              </thead>
-            </table>
-          </div>
-          <div className="flex-1 overflow-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <tbody className="bg-white divide-y divide-gray-200">
-                {receiptLines.map((line, index) => (
-                  <tr key={line.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-4 border-x border-gray-200 w-1/4">
-                      <div className="font-medium">{line.product?.name}</div>
-                      <div className="text-sm text-gray-600">{line.presentation?.unit}</div>
-                    </td>
-                    <td className="px-3 py-4 text-right text-gray-500 border-r border-gray-200 w-[120px]">
-                      {line.ordered_quantity}
-                    </td>
-                    <td className="px-3 py-4 text-right text-gray-500 border-r border-gray-200 w-[120px]">
-                      {line.receivedQuantity}
-                    </td>
-                    <td className="px-3 py-4 border-r border-gray-200 w-[120px]">
-                      {line.ordered_quantity - line.receivedQuantity === 0 ? (
-                        <div className="text-gray-500 text-right">0</div>
-                      ) : (
-                        <input
-                          type="number"
-                          min="0"
-                          max={line.ordered_quantity - line.receivedQuantity}
-                          value={line.newQuantity}
-                          onChange={(e) => handleQuantityChange(index, parseInt(e.target.value) || 0)}
-                          className="w-24 px-2 py-1 text-right border rounded-md"
-                          placeholder={`Reste: ${line.ordered_quantity - line.receivedQuantity}`}
-                          disabled={line.ordered_quantity - line.receivedQuantity === 0}
-                        />
-                      )}
-                    </td>
-                    <td className="px-3 py-4 border-r border-gray-200 w-[120px]">
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={line.purchasePrice}
-                        onChange={(e) => handlePriceChange(index, 'purchasePrice', parseFloat(e.target.value) || 0)}
-                        className="w-24 px-2 py-1 text-right border rounded-md"
-                      />
-                    </td>
-                    <td className="px-3 py-4 border-r border-gray-200 w-[120px]">
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={line.sellingPrice}
-                        onChange={(e) => handlePriceChange(index, 'sellingPrice', parseFloat(e.target.value) || 0)}
-                        className="w-24 px-2 py-1 text-right border rounded-md"
-                      />
-                    </td>
-                    <td className="px-3 py-4 border-r border-gray-200 w-[100px]">
-                      <div className="flex justify-center">
-                        <div
-                          className={`flex justify-center items-center w-10 h-10 rounded-md ${
-                            line.status === 'RECEPTIONNE'
-                              ? 'bg-green-100 text-green-800'
-                              : line.status === 'PARTIELLEMENT_RECEPTIONNE'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : line.status === 'NON_RECEPTIONNE'
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}
-                        >
-                          {line.status === 'RECEPTIONNE' && <PackageCheck className="w-6 h-6" />}
-                          {line.status === 'PARTIELLEMENT_RECEPTIONNE' && <PackageCheck className="w-6 h-6" />}
-                          {line.status === 'NON_RECEPTIONNE' && <PackageX className="w-6 h-6" />}
-                          {line.status === 'EN_ATTENTE' && <PackageX className="w-6 h-6" />}
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="hidden min-h-0 flex-1 flex-col px-6 pb-4 md:flex">
+          <DataTable<ReceiptLine>
+            rows={receiptLines}
+            rowKey={(line) => String(line.id)}
+            label="lignes"
+            caption="Lignes de la commande à réceptionner"
+            searchPlaceholder="Produit, présentation…"
+            columns={receiptColumns}
+            fill
+          />
         </div>
 
         {/* Vue mobile */}
