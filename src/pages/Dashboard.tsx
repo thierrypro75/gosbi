@@ -8,7 +8,7 @@ import { supplyService } from '../lib/services/supplyService';
 import ForecastChart from '../components/dashboard/ForecastChart';
 import { stockAlertService } from '../lib/services/stockAlertService';
 import { useTheme } from '../contexts/ThemeContext';
-import { cn, formatPrice } from '../lib/utils';
+import { cn, formatPrice, formatPriceCompact } from '../lib/utils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -20,9 +20,11 @@ const CHART_COLORS = {
 };
 
 const formatAmountInK = (value: number) => {
-  if (value >= 1000) {
-    return `${(value / 1000).toFixed(1)}K`;
-  }
+  const abs = Math.abs(value);
+  const fmt = (n: number) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(n);
+  if (abs >= 1_000_000_000) return `${fmt(value / 1_000_000_000)} Md`;
+  if (abs >= 1_000_000) return `${fmt(value / 1_000_000)} M`;
+  if (abs >= 1000) return `${fmt(value / 1000)} K`;
   return formatPrice(value);
 };
 
@@ -350,8 +352,11 @@ export default function Dashboard() {
       >
         <div className="p-5 sm:p-6">
           <p className="text-sm font-medium text-muted">Chiffre d'affaires</p>
-          <p className={cn('mt-2 text-3xl font-semibold tabular-nums tracking-tight text-ink', loading && 'opacity-40')}>
-            {formatPrice(metrics.totalRevenue)}
+          <p
+            title={formatPrice(metrics.totalRevenue)}
+            className={cn('mt-2 text-3xl font-semibold tabular-nums tracking-tight text-ink', loading && 'opacity-40')}
+          >
+            {formatPriceCompact(metrics.totalRevenue)}
           </p>
           <p className="mt-2 flex flex-wrap items-center gap-1.5 text-sm text-muted">
             {growth === null ? (
@@ -380,7 +385,7 @@ export default function Dashboard() {
             {metrics.totalSales}
           </p>
           <p className="mt-2 text-sm text-muted">
-            Panier moyen <span className="font-medium tabular-nums text-ink">{formatPrice(metrics.averageOrderValue)}</span>
+            Panier moyen <span className="font-medium tabular-nums text-ink">{formatPriceCompact(metrics.averageOrderValue)}</span>
           </p>
         </div>
 
@@ -645,7 +650,7 @@ function TopProducts({
                 {item.hint && <p className="mt-0.5 text-xs text-muted">{item.hint}</p>}
               </div>
               <div className="text-right">
-                <p className="whitespace-nowrap text-sm font-medium tabular-nums text-ink">{formatPrice(item.amount)}</p>
+                <p className="whitespace-nowrap text-sm font-medium tabular-nums text-ink" title={formatPrice(item.amount)}>{formatPriceCompact(item.amount)}</p>
                 <p className="mt-0.5 text-xs tabular-nums text-muted">
                   {total ? `${Math.round((item.amount / total) * 100)} % du CA` : '–'}
                 </p>
