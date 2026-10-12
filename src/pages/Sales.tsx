@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ShoppingCart, Plus, Trash2, X, Save, SaveAll } from 'lucide-react';
-import { formatPrice } from '../lib/utils';
+import { formatPrice, formatPriceCompact } from '../lib/utils';
 import { saleService, Sale } from '../lib/services/saleService';
 import { productService } from '../lib/services/productService';
 import { clientService, Client } from '../lib/services/clientService';
@@ -259,7 +259,7 @@ export default function Sales() {
       cell: (sale) => <span className="font-medium tabular-nums">{formatPrice(sale.total_amount)}</span>,
       footer: (rows) => (
         <span className="tabular-nums text-accent-ink">
-          {formatPrice(rows.reduce((sum, sale) => sum + sale.total_amount, 0))}
+          {formatPriceCompact(rows.reduce((sum, sale) => sum + sale.total_amount, 0))}
         </span>
       ),
     },
@@ -421,7 +421,7 @@ export default function Sales() {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-ink">Total général</span>
               <span className="text-sm font-semibold tabular-nums text-accent-ink">
-                {formatPrice(rows.reduce((sum, sale) => sum + sale.total_amount, 0))}
+                {formatPriceCompact(rows.reduce((sum, sale) => sum + sale.total_amount, 0))}
               </span>
             </div>
           ),

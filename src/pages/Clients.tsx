@@ -7,6 +7,7 @@ import { useQueryClient, useQuery } from '@tanstack/react-query';
 import Offcanvas from '../components/common/Offcanvas';
 import DataTable, { SearchInput, type DataColumn } from '../components/ui/DataTable';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import { formatPrice, formatPriceCompact } from '../lib/utils';
 
 export default function Clients() {
   const [isOffcanvasOpen, setIsOffcanvasOpen] = useState(false);
@@ -248,10 +249,14 @@ export default function Clients() {
       width: 170,
       align: 'right',
       sort: (c) => c.ca,
-      cell: (c) => <span className="font-medium tabular-nums">{c.ca.toLocaleString('fr-MG')} Ar</span>,
+      cell: (c) => (
+        <span className="font-medium tabular-nums" title={formatPrice(c.ca)}>
+          {formatPriceCompact(c.ca)}
+        </span>
+      ),
       footer: (rows) => (
         <span className="tabular-nums text-accent-ink">
-          {rows.reduce((sum, c) => sum + c.ca, 0).toLocaleString('fr-MG')} Ar
+          {formatPriceCompact(rows.reduce((sum, c) => sum + c.ca, 0))}
         </span>
       ),
     },
@@ -376,7 +381,7 @@ export default function Clients() {
                   {c.company && <p className="truncate text-xs text-muted">{c.company}</p>}
                   <p className="mt-1 text-sm text-muted">{c.email || c.phone || '–'}</p>
                   <p className="mt-1 text-sm font-medium tabular-nums text-ink">
-                    {c.ca.toLocaleString('fr-MG')} Ar
+                    {formatPriceCompact(c.ca)}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center" onClick={(e) => e.stopPropagation()}>
