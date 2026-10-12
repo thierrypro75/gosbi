@@ -40,6 +40,9 @@ export default function Sales() {
   const queryClient = useQueryClient();
   // Une seule bascule automatique vers la dernière période avec des ventes, sauf si l'utilisateur choisit lui-même.
   const periodSettled = useRef(false);
+  const [newSaleId, setNewSaleId] = useState<string | null>(null);
+  const highlightTimer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(highlightTimer.current), []);
 
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ['products'],
@@ -154,9 +157,24 @@ export default function Sales() {
         return;
       }
 
+      // Si la date saisie est hors de la période affichée, afficher son mois pour que la vente reste visible.
+      const [y, m, d] = saleDate.split('-').map(Number);
+      const soldOn = new Date(y, m - 1, d);
+      if (soldOn < dateRange[0] || soldOn > dateRange[1]) {
+        periodSettled.current = true;
+        setDateRange([new Date(y, m - 1, 1), new Date(y, m, 0, 23, 59, 59, 999)]);
+      }
+
       // Recharger les ventes et les produits
       queryClient.invalidateQueries({ queryKey: ['sales'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
+
+      // Surligner la nouvelle ligne quelques secondes
+      if (result.data?.id) {
+        setNewSaleId(result.data.id);
+        clearTimeout(highlightTimer.current);
+        highlightTimer.current = setTimeout(() => setNewSaleId(null), 3500);
+      }
 
       // Réinitialiser le formulaire selon le mode
       if (keepClient) {
@@ -366,6 +384,7 @@ export default function Sales() {
         query={search}
         onQueryChange={setSearch}
         hideSearch
+        highlightKey={newSaleId}
         pageSize={itemsPerPage}
         fill
         footerLabel="Total général"

@@ -10,6 +10,7 @@ export interface Sale {
   unit_price: number;
   total_amount: number;
   sale_date: string;
+  created_at?: string;
   created_by: string;
   client_id?: string;
   client_name: string;
@@ -133,7 +134,8 @@ export const saleService = {
           client:clients!client_id(id, name, email, phone, company)
         `)
         .eq('status', status)
-        .order('sale_date', { ascending: false });
+        .order('sale_date', { ascending: false })
+        .order('created_at', { ascending: false });
 
       if (startDate) {
         const formattedStartDate = new Date(startDate);
@@ -195,7 +197,8 @@ export const saleService = {
         `)
         .eq('client_id', clientId)
         .eq('status', status)
-        .order('sale_date', { ascending: false });
+        .order('sale_date', { ascending: false })
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, Search, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -49,6 +49,8 @@ interface DataTableProps<T> {
   defaultSort?: { id: string; dir: 'asc' | 'desc' };
   /** Rend les lignes cliquables. Les boutons internes doivent appeler `stopPropagation`. */
   onRowClick?: (row: T) => void;
+  /** Clé (`rowKey`) d'une ligne à mettre en évidence: le tableau affiche sa page et la fait défiler dans la vue. */
+  highlightKey?: string | null;
 }
 
 /** Champ de recherche réutilisable, au même rendu que celui du tableau. */
@@ -124,6 +126,7 @@ export default function DataTable<T>({
   fill,
   defaultSort,
   onRowClick,
+  highlightKey,
 }: DataTableProps<T>) {
   const { theme } = useTheme();
   const [innerQuery, setInnerQuery] = useState('');
@@ -166,6 +169,27 @@ export default function DataTable<T>({
   const currentPage = Math.min(page, totalPages);
   const visible = pageSize ? sorted.slice((currentPage - 1) * pageSize, currentPage * pageSize) : sorted;
 
+  // Ligne mise en évidence: on ouvre sa page puis on la fait défiler dans la vue (une seule fois par clé).
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const revealedKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (!highlightKey) {
+      revealedKey.current = null;
+      return;
+    }
+    if (revealedKey.current === highlightKey) return;
+    const index = sorted.findIndex((row) => rowKey(row) === highlightKey);
+    if (index < 0) return;
+    const targetPage = pageSize ? Math.floor(index / pageSize) + 1 : 1;
+    if (targetPage !== currentPage) {
+      setPage(targetPage);
+      return;
+    }
+    revealedKey.current = highlightKey;
+    const tr = scrollRef.current?.querySelector<HTMLElement>(`tr[data-row-key="${CSS.escape(highlightKey)}"]`);
+    tr?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [highlightKey, sorted, currentPage, pageSize, rowKey]);
+
   // Décalages des colonnes figées.
   const offsets = useMemo(() => {
     const map: Record<string, number> = {};
@@ -206,6 +230,7 @@ export default function DataTable<T>({
   // dépendre d'une variable CSS ou d'un format de couleur que le navigateur ignorerait.
   const SURFACE = theme === 'dark' ? '#1b202c' : '#fdfdfe';
   const RAIL = theme === 'dark' ? '#171b26' : '#f1f3f7';
+  const HIGHLIGHT = theme === 'dark' ? '#223256' : '#e4edfc';
 
   const stickyClass = (c: DataColumn<T>, z: string) =>
     c.sticky === 'left'
@@ -215,7 +240,7 @@ export default function DataTable<T>({
         : '';
 
   const table = (
-    <div className={cn('overflow-auto overscroll-contain', fill ? 'min-h-[14rem] flex-1' : scrollClassName)}>
+    <div ref={scrollRef} className={cn('overflow-auto overscroll-contain', fill ? 'min-h-[14rem] flex-1' : scrollClassName)}>
       <table className="w-full table-fixed border-separate border-spacing-0 text-sm" style={{ minWidth }}>
         <caption className="sr-only">{caption}</caption>
         <colgroup>
@@ -268,19 +293,23 @@ export default function DataTable<T>({
           </tr>
         </thead>
         <tbody>
-          {visible.map((row) => (
+          {visible.map((row) => {
+            const key = rowKey(row);
+            const rowBackground = key === highlightKey ? HIGHLIGHT : SURFACE;
+            return (
             <tr
-              key={rowKey(row)}
+              key={key}
+              data-row-key={key}
               onClick={onRowClick ? () => onRowClick(row) : undefined}
-              style={{ backgroundColor: SURFACE }}
-              className={cn(onRowClick && 'cursor-pointer')}
+              style={{ backgroundColor: rowBackground }}
+              className={cn('scroll-mb-14 scroll-mt-12 transition-colors duration-700', onRowClick && 'cursor-pointer')}
             >
               {columns.map((c) => (
                 <td
                   key={c.id}
-                  style={cellStyle(c, c.sticky ? 3 : undefined, c.sticky ? SURFACE : undefined)}
+                  style={cellStyle(c, c.sticky ? 3 : undefined, c.sticky ? rowBackground : undefined)}
                   className={cn(
-                    'border-b border-line px-4 py-3 align-middle text-ink',
+                    'border-b border-line px-4 py-3 align-middle text-ink transition-colors duration-700',
                     alignClass[c.align ?? 'left'],
                     !c.wrap && 'overflow-hidden text-ellipsis whitespace-nowrap',
                     c.sticky && stickyClass(c, ''),
@@ -291,7 +320,8 @@ export default function DataTable<T>({
                 </td>
               ))}
             </tr>
-          ))}
+            );
+          })}
         </tbody>
         {hasFooter && visible.length > 0 && (
           <tfoot>
