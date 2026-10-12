@@ -208,9 +208,9 @@ export default function Sales() {
     {
       id: 'date',
       header: 'Date',
-      width: 104,
+      width: 120,
       sticky: 'left',
-      cell: (sale) => <span className="text-muted">{new Date(sale.sale_date).toLocaleDateString('fr-FR')}</span>,
+      cell: (sale) => <span className="whitespace-nowrap tabular-nums text-muted">{new Date(sale.sale_date).toLocaleDateString('fr-FR')}</span>,
       search: (sale) => new Date(sale.sale_date).toLocaleDateString('fr-FR'),
     },
     {
